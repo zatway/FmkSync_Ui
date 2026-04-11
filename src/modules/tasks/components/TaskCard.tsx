@@ -4,7 +4,8 @@ import {Card, CardContent} from "@/shared/ui_shadcn/card";
 import {Avatar, AvatarFallback, AvatarImage} from "@/shared/ui_shadcn/avatar";
 import {useSortable} from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
-import {Calendar, AlertCircle} from "lucide-react";
+import {Calendar, AlertCircle, CheckCircle2} from "lucide-react";
+import {Button} from "@/shared/ui_shadcn/button";
 import {format, parseISO, isPast} from "date-fns";
 import {ru} from "date-fns/locale";
 import {cn} from "@/shared/lib/ui_shadcn/utils";
@@ -24,10 +25,12 @@ type ContentProps = {
     projectId: string;
     /** Визуальное состояние при перетаскивании (оверлей) */
     overlayStyle?: boolean;
+    doneColumnId?: string | null;
+    onCloseTask?: (taskId: string) => void | Promise<void>;
 };
 
 /** Только разметка — без dnd-хуков (для DragOverlay и переиспользования). */
-function TaskCardContent({task, projectId, overlayStyle}: ContentProps) {
+function TaskCardContent({task, projectId, overlayStyle, doneColumnId, onCloseTask}: ContentProps) {
     const navigate = useNavigate();
     const due = task.deadline;
     const isOverdue = due && isPast(parseISO(due));
@@ -60,7 +63,7 @@ function TaskCardContent({task, projectId, overlayStyle}: ContentProps) {
                     <div className="font-medium line-clamp-2">{task.title}</div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs sm:text-sm">
+                <div className="flex items-center justify-between text-xs sm:text-sm gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                         <span className="text-muted-foreground font-mono truncate">{task.key}</span>
                         <span
@@ -72,13 +75,32 @@ function TaskCardContent({task, projectId, overlayStyle}: ContentProps) {
                             {task.priority}
                         </span>
                     </div>
-
-                    {task.assignee && (
-                        <Avatar className="h-6 w-6 shrink-0">
-                            <AvatarImage src={task.assignee.avatarUrl ?? undefined}/>
-                            <AvatarFallback>{task.assignee.name[0]}</AvatarFallback>
-                        </Avatar>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                        {doneColumnId && onCloseTask && !task.status.isDoneColumn && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-primary"
+                                aria-label="Закрыть задачу"
+                                title="Закрыть задачу"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    void onCloseTask(task.id);
+                                }}
+                                onPointerDown={(e) => e.stopPropagation()}
+                            >
+                                <CheckCircle2 className="h-4 w-4"/>
+                            </Button>
+                        )}
+                        {task.assignee && (
+                            <Avatar className="h-6 w-6 shrink-0">
+                                <AvatarImage src={task.assignee.avatarUrl ?? undefined}/>
+                                <AvatarFallback>{task.assignee.name[0]}</AvatarFallback>
+                            </Avatar>
+                        )}
+                    </div>
                 </div>
 
                 {due && (
@@ -98,13 +120,15 @@ function TaskCardContent({task, projectId, overlayStyle}: ContentProps) {
 interface SortableProps {
     task: TaskShortDto;
     projectId: string;
+    doneColumnId?: string | null;
+    onCloseTask?: (taskId: string) => void | Promise<void>;
 }
 
 /**
  * Сортатируемая карточка: ref + listeners на нативном div (shadcn Card не forwardRef — ref на Card не работал).
  * @see https://docs.dndkit.com/presets/sortable#usesortable
  */
-export function TaskCard({task, projectId}: SortableProps) {
+export function TaskCard({task, projectId, doneColumnId, onCloseTask}: SortableProps) {
     const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
         id: task.id,
     });
@@ -126,7 +150,12 @@ export function TaskCard({task, projectId}: SortableProps) {
             {...attributes}
             {...listeners}
         >
-            <TaskCardContent task={task} projectId={projectId}/>
+            <TaskCardContent
+                task={task}
+                projectId={projectId}
+                doneColumnId={doneColumnId}
+                onCloseTask={onCloseTask}
+            />
         </div>
     );
 }

@@ -76,6 +76,7 @@ export const axiosBaseQuery =
 
                 if (error.response?.status === 401 && !isAuthAnonymousRequest) {
                     authLocalService.clearTokenData()
+                    window.location.replace(env.ROUTE_LOGIN)
                 }
 
                 return {

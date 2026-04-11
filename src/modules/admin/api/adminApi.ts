@@ -17,6 +17,16 @@ export interface AdminUserListItemDto {
     email: string
     role: UserRole
     isApproved: boolean
+    departmentId: string
+    positionId: string
+    departmentName: string
+    positionName: string
+}
+
+export interface OrgMemberDto {
+    id: string
+    fullName: string
+    email: string
 }
 
 export interface UpdateAdminUserRequest {
@@ -26,6 +36,7 @@ export interface UpdateAdminUserRequest {
     role?: UserRole | null
     departmentId?: string | null
     positionId?: string | null
+    newPassword?: string | null
 }
 
 const base = '/admin'
@@ -71,6 +82,18 @@ export const adminApi = api.injectEndpoints({
             }),
             invalidatesTags: ['Admin'],
         }),
+        getDepartmentUsers: builder.query<OrgMemberDto[], string>({
+            query: (departmentId) => ({
+                url: `${base}/departments/${departmentId}/users`,
+                method: 'GET',
+            }),
+        }),
+        getPositionUsers: builder.query<OrgMemberDto[], string>({
+            query: (positionId) => ({
+                url: `${base}/positions/${positionId}/users`,
+                method: 'GET',
+            }),
+        }),
     }),
 })
 
@@ -82,5 +105,7 @@ export const {
     useUpdateUserRoleMutation,
     useUpdateAdminUserMutation,
     useDeleteAdminUserMutation,
+    useLazyGetDepartmentUsersQuery,
+    useLazyGetPositionUsersQuery,
 } = adminApi
 

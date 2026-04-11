@@ -33,6 +33,7 @@ import type { TaskStatusColumnDto } from "@/types/dto/tasks/TaskStatusColumnDto"
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/shared/lib";
 import { cn } from "@/shared/lib/ui_shadcn/utils";
+import { resolveDoneColumnId } from "@/modules/tasks/lib/resolveDoneColumnId";
 
 interface ProjectKanbanBoardProps {
     projectId: string;
@@ -52,6 +53,8 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
         () => [...statusColumns].sort((a, b) => a.sortOrder - b.sortOrder),
         [statusColumns]
     );
+
+    const doneColumnId = useMemo(() => resolveDoneColumnId(sortedColumns), [sortedColumns]);
 
     const [columns, setColumns] = useState<Record<string, TaskShortDto[]>>({});
     const [activeTask, setActiveTask] = useState<TaskShortDto | null>(null);
@@ -144,6 +147,28 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
         }
     };
 
+    const handleCloseTask = async (taskId: string) => {
+        if (!doneColumnId) {
+            toast.error("Нет колонки для закрытых задач. Отметьте колонку «Готово» или задайте семантику Done.");
+            return;
+        }
+        const taskRow = tasksById.get(taskId);
+        if (!taskRow || taskRow.status.isDoneColumn) return;
+        const others = (columns[doneColumnId] ?? []).filter((t) => t.id !== taskId);
+        const newOrder = others.length;
+        try {
+            await changeStatus({
+                taskId,
+                projectId,
+                newStatusColumnId: doneColumnId,
+                newSortOrder: newOrder,
+            }).unwrap();
+            toast.success("Задача закрыта");
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
+        }
+    };
+
     const handleAddColumn = async () => {
         const name = newColName.trim();
         if (!name) return;
@@ -212,6 +237,8 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
                             column={{ id: column.id, title: column.name }}
                             tasks={columns[column.id] ?? []}
                             projectId={projectId}
+                            doneColumnId={doneColumnId}
+                            onCloseTask={handleCloseTask}
                         />
                     ))}
                 </div>
@@ -228,10 +255,14 @@ function KanbanColumn({
     column,
     tasks,
     projectId,
+    doneColumnId,
+    onCloseTask,
 }: {
     column: { id: string; title: string };
     tasks: TaskShortDto[];
     projectId: string;
+    doneColumnId: string | null;
+    onCloseTask: (taskId: string) => void | Promise<void>;
 }) {
     const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
@@ -253,7 +284,13 @@ function KanbanColumn({
             <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
                 <div className="flex flex-col gap-2 sm:gap-3 flex-1 min-h-0">
                     {tasks.map((task) => (
-                        <TaskCard key={task.id} task={task} projectId={projectId} />
+                        <TaskCard
+                            key={task.id}
+                            task={task}
+                            projectId={projectId}
+                            doneColumnId={doneColumnId}
+                            onCloseTask={onCloseTask}
+                        />
                     ))}
                 </div>
             </SortableContext>

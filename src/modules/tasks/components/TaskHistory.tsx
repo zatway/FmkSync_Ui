@@ -35,7 +35,7 @@ const TaskHistory: FC<TaskHistoryProps> = ({ history }) => {
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div className="flex items-center gap-3">
                                 <div>
-                                    <p className="font-medium">{h.changedByName?.trim() || h.changedById}</p>
+                                    <p className="font-medium">{h.changedByName?.trim() || h.changedById || "Неизвестно"}</p>
                                     <p className="text-xs text-muted-foreground">
                                         {format(parseISO(h.changedAt), "d MMMM yyyy, HH:mm", { locale: ru })}
                                     </p>

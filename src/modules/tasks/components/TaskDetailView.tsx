@@ -6,11 +6,12 @@ import {
     useUploadTaskCommentAttachmentsMutation,
     useUpdateTaskCommentMutation,
     useDeleteTaskCommentMutation,
+    useChangeTaskStatusMutation,
 } from "@/modules/tasks/api/tasksApi";
-import { useGetProjectByIdQuery } from "@/modules/projects/api/projectsApi";
+import { useGetProjectByIdQuery, useGetProjectTaskStatusColumnsQuery } from "@/modules/projects/api/projectsApi";
 import { AppRoutes } from "@/app/routes/AppRoutes";
 import { Button } from "@/shared/ui_shadcn/button";
-import { ArrowLeft, BookOpen, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle2, Edit, Pencil, Reply, Trash2 } from "lucide-react";
 import { Badge } from "@/shared/ui_shadcn/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui_shadcn/card";
 import { Textarea } from "@/shared/ui_shadcn/textarea";
@@ -23,13 +24,18 @@ import { authLocalService, getApiErrorMessage } from "@/shared/lib";
 import { toAbsoluteApiUrl } from "@/shared/lib/absoluteApiUrl";
 import { FilePickerButton } from "@/shared/ui/FilePickerButton";
 import TaskHistory from "@/modules/tasks/components/TaskHistory";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
+import { cn } from "@/shared/lib/ui_shadcn/utils";
+import { resolveDoneColumnId } from "@/modules/tasks/lib/resolveDoneColumnId";
 
 export function TaskDetailView() {
     const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>();
     const navigate = useNavigate();
     const { data: task, isLoading } = useGetTaskByIdQuery(taskId!, { skip: !taskId });
     const { data: project } = useGetProjectByIdQuery(projectId!, { skip: !projectId });
+    const { data: statusColumns = [] } = useGetProjectTaskStatusColumnsQuery(projectId!, { skip: !projectId });
     const [remove, { isLoading: deleting }] = useDeleteTaskMutation();
+    const [changeStatus, { isLoading: closing }] = useChangeTaskStatusMutation();
     const [addComment, { isLoading: addingComment }] = useAddTaskCommentMutation();
     const [uploadAttachments, { isLoading: uploading }] = useUploadTaskCommentAttachmentsMutation();
     const [updateComment, { isLoading: updatingComment }] = useUpdateTaskCommentMutation();
@@ -46,6 +52,39 @@ export function TaskDetailView() {
         if (!t) return null;
         return parseAccessTokenClaims(t)?.userId ?? null;
     }, []);
+
+    const doneColumnId = useMemo(() => resolveDoneColumnId(statusColumns), [statusColumns]);
+
+    const mentionMembers = useMemo(() => {
+        if (!project) return [];
+        const seen = new Set<string>();
+        const out: { id: string; name: string }[] = [];
+        if (project.owner) {
+            out.push({ id: project.owner.id, name: project.owner.name });
+            seen.add(project.owner.id);
+        }
+        for (const m of project.members ?? []) {
+            if (!seen.has(m.id)) {
+                out.push({ id: m.id, name: m.name });
+                seen.add(m.id);
+            }
+        }
+        return out;
+    }, [project]);
+
+    const handleCloseTask = async () => {
+        if (!taskId || !projectId || !task || !doneColumnId || task.status.isDoneColumn) return;
+        try {
+            await changeStatus({
+                taskId,
+                projectId,
+                newStatusColumnId: doneColumnId,
+            }).unwrap();
+            toast.success("Задача закрыта");
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
+        }
+    };
 
     const handleDelete = async () => {
         if (!taskId || !projectId || !task) return;
@@ -137,6 +176,17 @@ export function TaskDetailView() {
                     <Pencil className="mr-2 h-4 w-4" />
                     Изменить
                 </Button>
+                {doneColumnId && !task.status.isDoneColumn && (
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void handleCloseTask()}
+                        disabled={closing}
+                    >
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        Закрыть задачу
+                    </Button>
+                )}
                 <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Удалить
@@ -194,9 +244,9 @@ export function TaskDetailView() {
                                 </button>
                             </div>
                         )}
-                        {project?.members?.length ? (
+                        {mentionMembers.length ? (
                             <div className="flex flex-wrap gap-2">
-                                {project.members.map((m) => (
+                                {mentionMembers.map((m) => (
                                     <button
                                         key={m.id}
                                         type="button"
@@ -236,19 +286,60 @@ export function TaskDetailView() {
                             Отправить
                         </Button>
                     </div>
-                    <ul className="space-y-3">
+                    <div className="space-y-8">
                         {task.comments.map((c) => (
-                            <li key={c.id} className="border rounded-md p-3 text-sm">
-                                <div className="font-medium flex items-center justify-between gap-2 flex-wrap">
-                                    <span>{c.authorName}</span>
-                                    <div className="flex items-center gap-2">
-                                        <button
+                            <div key={c.id} className={cn("flex gap-4")}>
+                                <UserAvatar userId={c.userId} name={c.authorName} className="mt-1 shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-3 mb-1">
+                                        <span className="font-medium">{c.authorName}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {format(parseISO(c.createdAt), "d MMM yyyy, HH:mm", { locale: ru })}
+                                            {c.updatedAt && c.updatedAt !== c.createdAt && (
+                                                <span className="ml-1 italic">(изменено)</span>
+                                            )}
+                                        </span>
+                                    </div>
+                                    {editingId === c.id ? (
+                                        <Textarea
+                                            value={editContent}
+                                            onChange={(e) => setEditContent(e.target.value)}
+                                            rows={3}
+                                            className="mt-2"
+                                        />
+                                    ) : (
+                                        <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                                            {c.content}
+                                        </p>
+                                    )}
+                                    {c.attachments?.length ? (
+                                        <div className="mt-3 flex flex-col gap-1">
+                                            {c.attachments.map((a) => (
+                                                <a
+                                                    key={a.id}
+                                                    className="text-xs text-primary underline underline-offset-2 w-fit break-all"
+                                                    href={toAbsoluteApiUrl(a.downloadUrl)}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    {a.fileName} ({Math.round(a.sizeBytes / 1024)} KB)
+                                                </a>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                    <div className="flex items-center gap-4 mt-3">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 px-2 text-xs"
                                             type="button"
-                                            className="text-xs underline text-muted-foreground"
-                                            onClick={() => setReplyTo({ userId: c.userId, authorName: c.authorName })}
+                                            onClick={() =>
+                                                setReplyTo({ userId: c.userId, authorName: c.authorName })
+                                            }
                                         >
+                                            <Reply className="mr-1 h-3.5 w-3.5" />
                                             Ответить
-                                        </button>
+                                        </Button>
                                         {currentUserId === c.userId && (
                                             <>
                                                 {editingId === c.id ? (
@@ -256,6 +347,7 @@ export function TaskDetailView() {
                                                         type="button"
                                                         size="sm"
                                                         variant="secondary"
+                                                        className="h-8 px-2 text-xs"
                                                         disabled={updatingComment}
                                                         onClick={() => void saveEdit()}
                                                     >
@@ -266,8 +358,10 @@ export function TaskDetailView() {
                                                         type="button"
                                                         size="sm"
                                                         variant="ghost"
+                                                        className="h-8 px-2 text-xs"
                                                         onClick={() => startEdit(c.id, c.content)}
                                                     >
+                                                        <Edit className="mr-1 h-3.5 w-3.5" />
                                                         Правка
                                                     </Button>
                                                 )}
@@ -275,47 +369,20 @@ export function TaskDetailView() {
                                                     type="button"
                                                     size="sm"
                                                     variant="ghost"
-                                                    className="text-destructive"
+                                                    className="h-8 px-2 text-xs text-destructive"
                                                     disabled={deletingComment}
                                                     onClick={() => void removeComment(c.id)}
                                                 >
+                                                    <Trash2 className="mr-1 h-3.5 w-3.5" />
                                                     Удалить
                                                 </Button>
                                             </>
                                         )}
                                     </div>
                                 </div>
-                                <div className="text-muted-foreground text-xs mb-1">
-                                    {format(parseISO(c.createdAt), "d MMM yyyy HH:mm", { locale: ru })}
-                                </div>
-                                {editingId === c.id ? (
-                                    <Textarea
-                                        value={editContent}
-                                        onChange={(e) => setEditContent(e.target.value)}
-                                        rows={3}
-                                        className="mt-2"
-                                    />
-                                ) : (
-                                    <div className="whitespace-pre-wrap break-words">{c.content}</div>
-                                )}
-                                {c.attachments?.length ? (
-                                    <div className="mt-2 flex flex-col gap-1">
-                                        {c.attachments.map((a) => (
-                                            <a
-                                                key={a.id}
-                                                className="text-xs underline break-all"
-                                                href={toAbsoluteApiUrl(a.downloadUrl)}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                            >
-                                                {a.fileName} ({Math.round(a.sizeBytes / 1024)} KB)
-                                            </a>
-                                        ))}
-                                    </div>
-                                ) : null}
-                            </li>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                 </CardContent>
             </Card>
             <Card>

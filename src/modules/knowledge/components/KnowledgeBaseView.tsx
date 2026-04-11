@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { generatePath, Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { Button } from "@/shared/ui_shadcn/button";
-import { Input } from "@/shared/ui_shadcn/input";
-import { Textarea } from "@/shared/ui_shadcn/textarea";
-import { Label } from "@/shared/ui_shadcn/label";
+import {useEffect, useMemo, useState} from "react";
+import {generatePath, Link, useNavigate, useParams, useSearchParams} from "react-router-dom";
+import {Button} from "@/shared/ui_shadcn/button";
+import {Input} from "@/shared/ui_shadcn/input";
+import {Textarea} from "@/shared/ui_shadcn/textarea";
+import {Label} from "@/shared/ui_shadcn/label";
 import {
     useCreateKnowledgeArticleMutation,
     useDeleteKnowledgeArticleMutation,
@@ -11,16 +11,18 @@ import {
     useGetKnowledgeArticlesQuery,
     useUpdateKnowledgeArticleMutation,
 } from "@/modules/knowledge/api/knowledgeApi";
-import { AppRoutes } from "@/app/routes/AppRoutes";
-import { authLocalService, getApiErrorMessage } from "@/shared/lib";
-import { UserRole } from "@/types/dto/enums/UserRole";
-import { env } from "@/env";
-import { BookOpen, FolderOpen, ListTree } from "lucide-react";
-import { KnowledgeTree } from "@/modules/knowledge/components/KnowledgeTree";
-import { buildKnowledgeTree } from "@/modules/knowledge/lib/knowledgeTree";
+import {AppRoutes} from "@/app/routes/AppRoutes";
+import {authLocalService, getApiErrorMessage} from "@/shared/lib";
+import {UserRole} from "@/types/dto/enums/UserRole";
+import {env} from "@/env";
+import {BookOpen, FolderOpen, ListTree} from "lucide-react";
+import {KnowledgeTree} from "@/modules/knowledge/components/KnowledgeTree";
+import {buildKnowledgeTree} from "@/modules/knowledge/lib/knowledgeTree";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export function KnowledgeBaseView() {
-    const { slug } = useParams<{ slug?: string }>();
+    const {slug} = useParams<{ slug?: string }>();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const role = authLocalService.getUserRole();
@@ -31,21 +33,21 @@ export function KnowledgeBaseView() {
     const listParams = useMemo(
         () =>
             projectIdFilter || taskIdFilter
-                ? { projectId: projectIdFilter, taskId: taskIdFilter }
+                ? {projectId: projectIdFilter, taskId: taskIdFilter}
                 : undefined,
         [projectIdFilter, taskIdFilter],
     );
 
     const searchSuffix = searchParams.toString() ? `?${searchParams.toString()}` : "";
 
-    const { data: list, isLoading: listLoading } = useGetKnowledgeArticlesQuery(listParams);
-    const { data: article, isLoading: artLoading } = useGetKnowledgeArticleQuery(slug ?? "", {
+    const {data: list, isLoading: listLoading} = useGetKnowledgeArticlesQuery(listParams);
+    const {data: article, isLoading: artLoading} = useGetKnowledgeArticleQuery(slug ?? "", {
         skip: !slug,
     });
 
-    const [createArticle, { isLoading: creating }] = useCreateKnowledgeArticleMutation();
-    const [updateArticle, { isLoading: updating }] = useUpdateKnowledgeArticleMutation();
-    const [deleteArticle, { isLoading: deleting }] = useDeleteKnowledgeArticleMutation();
+    const [createArticle, {isLoading: creating}] = useCreateKnowledgeArticleMutation();
+    const [updateArticle, {isLoading: updating}] = useUpdateKnowledgeArticleMutation();
+    const [deleteArticle, {isLoading: deleting}] = useDeleteKnowledgeArticleMutation();
 
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
@@ -77,7 +79,7 @@ export function KnowledgeBaseView() {
         setContent("");
         setParentIdForCreate(null);
         setEditMode(true);
-        navigate({ pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString() });
+        navigate({pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString()});
     };
 
     const handleAddChild = (parentId: string) => {
@@ -85,7 +87,7 @@ export function KnowledgeBaseView() {
         setTitle("");
         setContent("");
         setEditMode(true);
-        navigate({ pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString() });
+        navigate({pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString()});
     };
 
     const handleCreate = async () => {
@@ -100,7 +102,7 @@ export function KnowledgeBaseView() {
             setEditMode(false);
             setParentIdForCreate(null);
             navigate(
-                generatePath(env.ROUTE_KNOWLEDGE_ARTICLE, { slug: created.slug }) + searchSuffix,
+                generatePath(env.ROUTE_KNOWLEDGE_ARTICLE, {slug: created.slug}) + searchSuffix,
             );
         } catch (e) {
             alert(getApiErrorMessage(e));
@@ -112,7 +114,7 @@ export function KnowledgeBaseView() {
         try {
             await updateArticle({
                 id: article.id,
-                body: { title, contentMarkdown: content },
+                body: {title, contentMarkdown: content},
             }).unwrap();
             setEditMode(false);
         } catch (e) {
@@ -124,7 +126,7 @@ export function KnowledgeBaseView() {
         if (!article || !confirm("Удалить статью?")) return;
         try {
             await deleteArticle(article.id).unwrap();
-            navigate({ pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString() });
+            navigate({pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString()});
         } catch (e) {
             alert(getApiErrorMessage(e));
         }
@@ -134,7 +136,7 @@ export function KnowledgeBaseView() {
         <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                    <ListTree className="h-7 w-7 text-primary" />
+                    <ListTree className="h-7 w-7 text-primary"/>
                     <h1 className="text-2xl font-semibold tracking-tight">База знаний</h1>
                 </div>
                 {canEdit && (
@@ -145,8 +147,9 @@ export function KnowledgeBaseView() {
             </div>
 
             {(projectIdFilter || taskIdFilter) && (
-                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-                    <FolderOpen className="h-4 w-4 shrink-0 text-primary" />
+                <div
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+                    <FolderOpen className="h-4 w-4 shrink-0 text-primary"/>
                     <span className="text-muted-foreground">Область:</span>
                     <span className="font-medium">{scopeLabel ?? "…"}</span>
                     <Link
@@ -161,7 +164,7 @@ export function KnowledgeBaseView() {
             <div className="grid gap-6 md:grid-cols-[minmax(0,280px)_1fr]">
                 <aside className="rounded-xl border bg-card p-3 text-sm shadow-sm">
                     <div className="mb-3 flex items-center gap-2 font-medium text-muted-foreground">
-                        <BookOpen className="h-4 w-4" />
+                        <BookOpen className="h-4 w-4"/>
                         Содержание
                     </div>
                     {listLoading && <p className="text-muted-foreground">Загрузка…</p>}
@@ -274,7 +277,7 @@ export function KnowledgeBaseView() {
                                                     })}
                                                     className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 font-medium text-foreground hover:bg-accent"
                                                 >
-                                                    <FolderOpen className="h-3.5 w-3.5" />
+                                                    <FolderOpen className="h-3.5 w-3.5"/>
                                                     {article.projectName ?? article.projectKey ?? "Проект"}
                                                 </Link>
                                             )}
@@ -295,9 +298,13 @@ export function KnowledgeBaseView() {
                                             article.updatedAt ?? article.createdAt,
                                         ).toLocaleString("ru-RU")}
                                     </p>
-                                    <div className="not-prose whitespace-pre-wrap text-sm leading-relaxed">
-                                        {article.contentMarkdown}
-                                    </div>
+                                    <article className="prose prose-lg prose-headings:text-white prose-p:text-gray-300
+                        prose-strong:text-violet-400 prose-code:text-pink-400
+                        max-w-none">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                            {article.contentMarkdown}
+                                        </ReactMarkdown>
+                                    </article>
                                 </article>
                             )}
                             {!artLoading && !article && (

@@ -25,6 +25,10 @@ function BarChart({
     const max = Math.max(1, ...rows.map((r) => Number(r[valueKey]) || 0));
     return (
         <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+                Полосы сравнивают значения между собой: 100% ширины — у строки с наибольшим числом в текущей выборке (
+                {max}).
+            </p>
             {rows.map((row, i) => {
                 const v = Number(row[valueKey]) || 0;
                 const pct = Math.round((v / max) * 100);
@@ -48,17 +52,22 @@ function BarChart({
 }
 
 const AnalyticsPage = () => {
-    const { data, isLoading, error } = useGetAnalyticsDashboardQuery();
     const { data: projects = [] } = useGetProjectsQuery();
+    const [projectId, setProjectId] = useState<string>("");
+    const queryArg = useMemo(
+        () => (projectId ? { projectId } : undefined),
+        [projectId],
+    );
+    const { data, isLoading, error } = useGetAnalyticsDashboardQuery(queryArg);
     const [projectIdForExport, setProjectIdForExport] = useState<string>("");
 
     const statusRows = useMemo(
         () => data?.tasksByStatus.map((s) => ({ label: s.statusName, value: s.count })) ?? [],
-        [data?.tasksByStatus]
+        [data?.tasksByStatus],
     );
     const assigneeRows = useMemo(
         () => data?.topAssignees.map((u) => ({ label: u.fullName, value: u.activeTaskCount })) ?? [],
-        [data?.topAssignees]
+        [data?.topAssignees],
     );
 
     const exportOverdue = async () => {
@@ -108,7 +117,7 @@ const AnalyticsPage = () => {
         a.download = `tasks-${projectIdForExport}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-        toast.success("CSV сохранён (UTF‑8, Excel открывает через «Данные»)");
+        toast.success("CSV сохранён");
     };
 
     return (
@@ -117,10 +126,33 @@ const AnalyticsPage = () => {
                 <div>
                     <h1 className="text-2xl font-semibold">Аналитика и отчёты</h1>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Сводка по задачам, выгрузки CSV и наглядные диаграммы по данным дашборда.
+                        Сводка по открытым задачам (не завершённым). Выберите проект или смотрите все доступные.
                     </p>
                 </div>
             </div>
+
+            <section className="rounded-xl border bg-card p-4 md:p-6">
+                <h2 className="mb-3 text-lg font-medium">Область аналитики</h2>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:max-w-md">
+                    <span className="text-sm text-muted-foreground shrink-0">Проект</span>
+                    <Select
+                        value={projectId || "__all__"}
+                        onValueChange={(v) => setProjectId(v === "__all__" ? "" : v)}
+                    >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Все доступные проекты" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="__all__">Все доступные проекты</SelectItem>
+                            {projects.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                    {p.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </section>
 
             <section className="rounded-xl border bg-card p-4 md:p-6">
                 <h2 className="mb-4 text-lg font-medium">Выгрузки</h2>
@@ -159,7 +191,7 @@ const AnalyticsPage = () => {
                     </div>
                 </div>
                 <p className="mt-4 text-xs text-muted-foreground">
-                    Формат CSV — UTF‑8. Для Excel: «Данные» → «Из текста/CSV» или открыть через LibreOffice.
+                    CSV — UTF-8. Для Excel: «Данные» → «Из текста/CSV».
                 </p>
             </section>
 
@@ -173,7 +205,7 @@ const AnalyticsPage = () => {
                             <div className="mt-1 text-3xl font-semibold tabular-nums">{data.openTasks}</div>
                         </div>
                         <div className="rounded-xl border bg-card p-5">
-                            <div className="text-sm text-muted-foreground">Просрочено</div>
+                            <div className="text-sm text-muted-foreground">Просрочено среди открытых</div>
                             <div className="mt-1 text-3xl font-semibold tabular-nums text-destructive">
                                 {data.overdueTasks}
                             </div>
@@ -182,11 +214,11 @@ const AnalyticsPage = () => {
 
                     <div className="grid gap-6 lg:grid-cols-2">
                         <div className="rounded-xl border bg-card p-5">
-                            <h3 className="mb-4 font-medium">Задачи по статусам</h3>
+                            <h3 className="mb-4 font-medium">Открытые задачи по статусам</h3>
                             <BarChart rows={statusRows} labelKey="label" valueKey="value" />
                         </div>
                         <div className="rounded-xl border bg-card p-5">
-                            <h3 className="mb-4 font-medium">Загрузка исполнителей</h3>
+                            <h3 className="mb-4 font-medium">Загрузка исполнителей (открытые)</h3>
                             <BarChart rows={assigneeRows} labelKey="label" valueKey="value" />
                         </div>
                     </div>

@@ -28,6 +28,38 @@ export const organizationApi = api.injectEndpoints({
             query: (body) => ({ url: env.API_POSITIONS_PATH, method: "POST", data: body }),
             invalidatesTags: ["Organization"],
         }),
+        deleteDepartment: builder.mutation<
+            void,
+            {
+                id: string;
+                options?: {
+                    reassignToDepartmentId?: string;
+                    positionIdForReassignedUsers?: string;
+                    deleteAllUsers?: boolean;
+                };
+            }
+        >({
+            query: ({ id, options }) => ({
+                url: `${env.API_DEPARTMENTS_PATH}/${id}`,
+                method: "DELETE",
+                data: options ?? {},
+            }),
+            invalidatesTags: ["Organization", "Admin"],
+        }),
+        deletePosition: builder.mutation<
+            void,
+            {
+                id: string;
+                options?: { reassignToPositionId?: string; deleteAllUsers?: boolean };
+            }
+        >({
+            query: ({ id, options }) => ({
+                url: `${env.API_POSITIONS_PATH}/${id}`,
+                method: "DELETE",
+                data: options ?? {},
+            }),
+            invalidatesTags: ["Organization", "Admin"],
+        }),
     }),
 });
 
@@ -36,4 +68,6 @@ export const {
     useGetPositionsQuery,
     useAddedDepartmentsMutation,
     useAddedPositionsMutation,
+    useDeleteDepartmentMutation,
+    useDeletePositionMutation,
 } = organizationApi;

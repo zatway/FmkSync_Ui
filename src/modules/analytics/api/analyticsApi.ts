@@ -9,11 +9,19 @@ export type AnalyticsDashboard = {
 
 export const analyticsApi = api.injectEndpoints({
     endpoints: (builder) => ({
-        getAnalyticsDashboard: builder.query<AnalyticsDashboard, void>({
-            query: () => ({
-                url: "/analytics/dashboard",
-                method: "GET",
-            }),
+        getAnalyticsDashboard: builder.query<
+            AnalyticsDashboard,
+            { projectId?: string | null } | void
+        >({
+            query: (arg) => {
+                const pid =
+                    arg && typeof arg === "object" && arg.projectId ? String(arg.projectId) : undefined;
+                return {
+                    url: "/analytics/dashboard",
+                    method: "GET",
+                    params: pid ? { projectId: pid } : undefined,
+                };
+            },
         }),
     }),
     overrideExisting: false,

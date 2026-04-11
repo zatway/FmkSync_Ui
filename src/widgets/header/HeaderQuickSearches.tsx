@@ -123,6 +123,7 @@ export function HeaderQuickSearches() {
                                     {to ? (
                                         <Link
                                             to={to}
+                                            onClick={() => setQKb("")}
                                             className="block px-3 py-2 hover:bg-accent truncate"
                                             title={hit.title}
                                         >
@@ -167,6 +168,7 @@ export function HeaderQuickSearches() {
                                     {to ? (
                                         <Link
                                             to={to}
+                                            onClick={() => setQTasks("")}
                                             className="block px-3 py-2 hover:bg-accent truncate"
                                             title={hit.title}
                                         >

@@ -1,11 +1,11 @@
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useLoginMutation } from "@/modules/auth/api/authApi";
-import { Button } from "@/shared/ui_shadcn/button";
-import { Logo } from "@/shared/ui/Logo/Logo";
-import { Link, useNavigate } from "react-router-dom";
-import { AppRoutes } from "@/app/routes/AppRoutes";
+import {useForm} from "react-hook-form";
+import {z} from "zod";
+import {zodResolver} from "@hookform/resolvers/zod";
+import {useLoginMutation} from "@/modules/auth/api/authApi";
+import {Button} from "@/shared/ui_shadcn/button";
+import {Logo} from "@/shared/ui/Logo/Logo";
+import {Link, useNavigate} from "react-router-dom";
+import {AppRoutes} from "@/app/routes/AppRoutes";
 import {
     Form,
     FormControl,
@@ -14,9 +14,9 @@ import {
     FormLabel,
     FormMessage,
 } from "@/shared/ui_shadcn/form";
-import { Input } from "@/shared/ui_shadcn/input";
-import { toast } from "sonner";
-import { getApiErrorMessage } from "@/shared/lib";
+import {Input} from "@/shared/ui_shadcn/input";
+import {toast} from "sonner";
+import {getApiErrorMessage} from "@/shared/lib";
 
 const loginSchema = z.object({
     email: z.string().min(1, "Укажите email").email("Некорректный email"),
@@ -26,12 +26,13 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 const LoginForm = () => {
-    const [login, { isLoading }] = useLoginMutation();
+    const [login, {isLoading, error}] = useLoginMutation();
+
     const navigate = useNavigate();
 
     const form = useForm<LoginValues>({
         resolver: zodResolver(loginSchema),
-        defaultValues: { email: "", password: "" },
+        defaultValues: {email: "", password: ""},
         mode: "onChange",
         reValidateMode: "onChange",
     });
@@ -44,14 +45,15 @@ const LoginForm = () => {
             }).unwrap();
             navigate(AppRoutes.PROJECTS);
         } catch (e) {
-            toast.error(getApiErrorMessage(e, { authContext: true }));
+            toast.error(getApiErrorMessage(e, {authContext: true}));
         }
     };
 
+    // @ts-ignore
     return (
         <div className="w-full max-w-md rounded-2xl bg-card p-6 sm:p-8 shadow-lg border">
             <div className="flex justify-center mb-6">
-                <Logo height={70} />
+                <Logo height={70}/>
             </div>
 
             <div className="text-center mb-6">
@@ -63,26 +65,26 @@ const LoginForm = () => {
                     <FormField
                         control={form.control}
                         name="email"
-                        render={({ field }) => (
+                        render={({field}) => (
                             <FormItem>
                                 <FormLabel>Почта</FormLabel>
                                 <FormControl>
                                     <Input type="email" autoComplete="email" {...field} />
                                 </FormControl>
-                                <FormMessage />
+                                <FormMessage/>
                             </FormItem>
                         )}
                     />
                     <FormField
                         control={form.control}
                         name="password"
-                        render={({ field }) => (
+                        render={({field}) => (
                             <FormItem>
                                 <FormLabel>Пароль</FormLabel>
                                 <FormControl>
                                     <Input type="password" autoComplete="current-password" {...field} />
                                 </FormControl>
-                                <FormMessage />
+                                <FormMessage/>
                             </FormItem>
                         )}
                     />
@@ -106,6 +108,10 @@ const LoginForm = () => {
                     >
                         Нет аккаунта? Создать
                     </button>
+                     <text
+                        className="text-red-500 text-shadow-xs p-2 rounded-md text-center">
+                         {error?.status === 401 ? 'Не верная почта или пароль' : '' }
+                     </text>
                 </form>
             </Form>
         </div>

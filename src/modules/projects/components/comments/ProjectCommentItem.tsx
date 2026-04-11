@@ -5,7 +5,7 @@ import { format, parseISO } from "date-fns";
 import { ru } from "date-fns/locale";
 import { Trash2, Reply, Edit } from "lucide-react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui_shadcn/avatar";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 import { Button } from "@/shared/ui_shadcn/button";
 import { ProjectCommentForm } from "@/modules/projects";
 import { ProjectCommentDto } from "@/types/dto/projectComments/ProjectCommentDto";
@@ -37,10 +37,7 @@ export function ProjectCommentItem({ comment, projectId, level }: Props) {
 
     return (
         <div className={cn("flex gap-4", level > 0 && "ml-10 border-l-2 border-muted pl-6")}>
-            <Avatar className="h-10 w-10 mt-1">
-                <AvatarImage src={comment.author.avatarUrl} alt={comment.author.name}/>
-                <AvatarFallback>{comment.author.name?.[0]?.toUpperCase()}</AvatarFallback>
-            </Avatar>
+            <UserAvatar userId={comment.author.id} name={comment.author.name} className="mt-1" />
 
             <div className="flex-1">
                 <div className="flex items-center gap-3 mb-1">
