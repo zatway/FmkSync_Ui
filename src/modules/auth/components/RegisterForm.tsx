@@ -241,7 +241,7 @@ const RegisterForm = () => {
 
                     <Button
                         type="submit"
-                        disabled={isLoading || !form.formState.isValid}
+                        disabled={isLoading}
                         className="w-full mt-2"
                     >
                         {isLoading ? "Регистрация..." : "Зарегистрироваться"}

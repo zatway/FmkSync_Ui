@@ -63,7 +63,7 @@ export default function TaskCreatePage() {
             <h1 className='text-2xl font-bold mb-6'>Новая задача</h1>
             {project && !statusColumns.length && (
                 <p className="mb-6 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-                    Сначала добавьте хотя бы одну колонку статуса на доске проекта, затем создайте задачу.
+                    У проекта нет колонок статусов (старые данные). Добавьте колонки на доске Kanban, затем создайте задачу.
                 </p>
             )}
             {project && statusColumns.length > 0 && (

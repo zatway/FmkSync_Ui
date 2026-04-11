@@ -49,7 +49,6 @@ const LoginForm = () => {
         }
     };
 
-    // @ts-ignore
     return (
         <div className="w-full max-w-md rounded-2xl bg-card p-6 sm:p-8 shadow-lg border">
             <div className="flex justify-center mb-6">
@@ -90,7 +89,7 @@ const LoginForm = () => {
                     />
                     <Button
                         type="submit"
-                        disabled={isLoading || !form.formState.isValid}
+                        disabled={isLoading}
                         className="w-full mt-2"
                     >
                         {isLoading ? "Вход…" : "Войти"}
@@ -108,10 +107,14 @@ const LoginForm = () => {
                     >
                         Нет аккаунта? Создать
                     </button>
-                     <text
-                        className="text-red-500 text-shadow-xs p-2 rounded-md text-center">
-                         {error?.status === 401 ? 'Не верная почта или пароль' : '' }
-                     </text>
+                    {error != null &&
+                    typeof error === "object" &&
+                    "status" in error &&
+                    (error as { status: number }).status === 401 ? (
+                        <p className="rounded-md p-2 text-center text-sm text-destructive">
+                            Неверная почта или пароль
+                        </p>
+                    ) : null}
                 </form>
             </Form>
         </div>

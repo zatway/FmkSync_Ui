@@ -93,7 +93,7 @@ const ResetPasswordPage = () => {
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={isLoading || !form.formState.isValid}
+                            disabled={isLoading}
                         >
                             Сохранить
                         </Button>

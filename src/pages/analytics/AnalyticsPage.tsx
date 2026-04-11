@@ -1,4 +1,19 @@
-import { useMemo, useState } from "react";
+import {useMemo, useState} from "react";
+import {
+    Area,
+    AreaChart,
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Legend,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from "recharts";
 import { env } from "@/env";
 import { useGetAnalyticsDashboardQuery } from "@/modules/analytics/api/analyticsApi";
 import { useGetProjectsQuery } from "@/modules/projects/api/projectsApi";
@@ -12,41 +27,39 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/shared/ui_shadcn/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui_shadcn/tabs";
 
-function BarChart({
-    rows,
-    valueKey,
-    labelKey,
+const PALETTE = [
+    "hsl(var(--primary))",
+    "#8b5cf6",
+    "#ec4899",
+    "#f97316",
+    "#14b8a6",
+    "#22c55e",
+    "#0ea5e9",
+    "#a855f7",
+];
+
+function ChartTooltip({
+    active,
+    payload,
+    label,
+    valueSuffix = "задач",
 }: {
-    rows: Array<Record<string, string | number>>;
-    valueKey: string;
-    labelKey: string;
+    active?: boolean;
+    payload?: ReadonlyArray<{ value?: unknown; name?: unknown }>;
+    label?: unknown;
+    valueSuffix?: string;
 }) {
-    const max = Math.max(1, ...rows.map((r) => Number(r[valueKey]) || 0));
+    if (!active || !payload?.length) return null;
+    const v = Number(payload[0]?.value ?? 0);
+    const name = String(label ?? payload[0]?.name ?? "");
     return (
-        <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-                Полосы сравнивают значения между собой: 100% ширины — у строки с наибольшим числом в текущей выборке (
-                {max}).
+        <div className="rounded-lg border bg-card px-3 py-2 text-sm shadow-md">
+            <p className="font-medium text-foreground">{name}</p>
+            <p className="tabular-nums text-muted-foreground">
+                {v} {valueSuffix}
             </p>
-            {rows.map((row, i) => {
-                const v = Number(row[valueKey]) || 0;
-                const pct = Math.round((v / max) * 100);
-                return (
-                    <div key={i} className="space-y-1">
-                        <div className="flex justify-between gap-2 text-sm">
-                            <span className="truncate text-foreground">{String(row[labelKey])}</span>
-                            <span className="shrink-0 tabular-nums text-muted-foreground">{v}</span>
-                        </div>
-                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                            <div
-                                className="h-full rounded-full bg-primary/80 transition-[width]"
-                                style={{ width: `${pct}%` }}
-                            />
-                        </div>
-                    </div>
-                );
-            })}
         </div>
     );
 }
@@ -54,20 +67,27 @@ function BarChart({
 const AnalyticsPage = () => {
     const { data: projects = [] } = useGetProjectsQuery();
     const [projectId, setProjectId] = useState<string>("");
-    const queryArg = useMemo(
-        () => (projectId ? { projectId } : undefined),
-        [projectId],
-    );
+    const queryArg = useMemo(() => (projectId ? { projectId } : undefined), [projectId]);
     const { data, isLoading, error } = useGetAnalyticsDashboardQuery(queryArg);
     const [projectIdForExport, setProjectIdForExport] = useState<string>("");
+    const [chartType, setChartType] = useState<"bar" | "pie" | "area">("bar");
 
     const statusRows = useMemo(
-        () => data?.tasksByStatus.map((s) => ({ label: s.statusName, value: s.count })) ?? [],
+        () => data?.tasksByStatus.map((s) => ({ name: s.statusName, value: s.count })) ?? [],
         [data?.tasksByStatus],
     );
     const assigneeRows = useMemo(
-        () => data?.topAssignees.map((u) => ({ label: u.fullName, value: u.activeTaskCount })) ?? [],
+        () => data?.topAssignees.map((u) => ({ name: u.fullName, value: u.activeTaskCount })) ?? [],
         [data?.topAssignees],
+    );
+
+    const statusWithColors = useMemo(
+        () =>
+            statusRows.map((row, i) => ({
+                ...row,
+                fill: PALETTE[i % PALETTE.length],
+            })),
+        [statusRows],
     );
 
     const exportOverdue = async () => {
@@ -87,7 +107,7 @@ const AnalyticsPage = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = "overdue-tasks.csv";
+        a.download = "prosrochennye-zadachi.csv";
         a.click();
         URL.revokeObjectURL(url);
         toast.success("Файл сохранён");
@@ -114,14 +134,17 @@ const AnalyticsPage = () => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `tasks-${projectIdForExport}.csv`;
+        a.download = `zadachi-proekta-${projectIdForExport}.csv`;
         a.click();
         URL.revokeObjectURL(url);
         toast.success("CSV сохранён");
     };
 
+    const hasStatusData = statusRows.some((r) => r.value > 0);
+    const hasAssigneeData = assigneeRows.some((r) => r.value > 0);
+
     return (
-        <div className="mx-auto max-w-5xl space-y-8 p-4 md:p-8">
+        <div className="mx-auto max-w-6xl space-y-8 p-4 md:p-8">
             <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-semibold">Аналитика и отчёты</h1>
@@ -134,11 +157,8 @@ const AnalyticsPage = () => {
             <section className="rounded-xl border bg-card p-4 md:p-6">
                 <h2 className="mb-3 text-lg font-medium">Область аналитики</h2>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:max-w-md">
-                    <span className="text-sm text-muted-foreground shrink-0">Проект</span>
-                    <Select
-                        value={projectId || "__all__"}
-                        onValueChange={(v) => setProjectId(v === "__all__" ? "" : v)}
-                    >
+                    <span className="shrink-0 text-sm text-muted-foreground">Проект</span>
+                    <Select value={projectId || "__all__"} onValueChange={(v) => setProjectId(v === "__all__" ? "" : v)}>
                         <SelectTrigger>
                             <SelectValue placeholder="Все доступные проекты" />
                         </SelectTrigger>
@@ -191,7 +211,7 @@ const AnalyticsPage = () => {
                     </div>
                 </div>
                 <p className="mt-4 text-xs text-muted-foreground">
-                    CSV — UTF-8. Для Excel: «Данные» → «Из текста/CSV».
+                    CSV — UTF-8 с русскими заголовками. Для Excel: «Данные» → «Из текста/CSV».
                 </p>
             </section>
 
@@ -214,12 +234,145 @@ const AnalyticsPage = () => {
 
                     <div className="grid gap-6 lg:grid-cols-2">
                         <div className="rounded-xl border bg-card p-5">
-                            <h3 className="mb-4 font-medium">Открытые задачи по статусам</h3>
-                            <BarChart rows={statusRows} labelKey="label" valueKey="value" />
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                                <h3 className="font-medium">Открытые задачи по статусам</h3>
+                            </div>
+                            {!hasStatusData ? (
+                                <p className="text-sm text-muted-foreground">Нет данных для диаграммы</p>
+                            ) : (
+                                <Tabs
+                                    value={chartType}
+                                    onValueChange={(value) => setChartType(value as "bar" | "pie" | "area")}
+                                    className="w-full flex-col"
+                                >
+                                    <TabsList variant="line" className="mb-4 justify-start">
+                                        <TabsTrigger value="bar">Столбцы</TabsTrigger>
+                                        <TabsTrigger value="pie">Круговая</TabsTrigger>
+                                        <TabsTrigger value="area">По этапам (область)</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="bar" className="mt-0">
+                                        <div className="h-[320px] w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={statusWithColors} margin={{ top: 8, right: 8, left: 0, bottom: 64 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                                    <XAxis
+                                                        dataKey="name"
+                                                        tick={{ fontSize: 11 }}
+                                                        interval={0}
+                                                        angle={-25}
+                                                        textAnchor="end"
+                                                        height={70}
+                                                    />
+                                                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                                                    <Tooltip
+                                                        content={<ChartTooltip />}
+                                                        cursor={{ fill: "var(--muted-foreground)" }}
+                                                    />
+                                                    <Bar dataKey="value" name="Задач" radius={[6, 6, 0, 0]}>
+                                                        {statusWithColors.map((entry, index) => (
+                                                            <Cell key={`c-${index}`} fill={entry.fill} />
+                                                        ))}
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </TabsContent>
+                                    <TabsContent value="pie" className="mt-0">
+                                        <div className="h-[320px] w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <PieChart>
+                                                    <Pie
+                                                        data={statusWithColors}
+                                                        dataKey="value"
+                                                        nameKey="name"
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={56}
+                                                        outerRadius={100}
+                                                        paddingAngle={2}
+                                                        label={({ name, percent }) =>
+                                                            `${name}: ${((percent ?? 0) * 100).toFixed(0)}%`
+                                                        }
+                                                    >
+                                                        {statusWithColors.map((entry, index) => (
+                                                            <Cell key={`p-${index}`} fill={entry.fill} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip content={<ChartTooltip />} />
+                                                    <Legend />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </TabsContent>
+                                    <TabsContent value="area" className="mt-0">
+                                        <div className="h-[320px] w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <AreaChart data={statusWithColors} margin={{ top: 8, right: 8, left: 0, bottom: 64 }}>
+                                                    <defs>
+                                                        <linearGradient id="statusArea" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.45} />
+                                                            <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.05} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                                    <XAxis
+                                                        dataKey="name"
+                                                        tick={{ fontSize: 11 }}
+                                                        interval={0}
+                                                        angle={-25}
+                                                        textAnchor="end"
+                                                        height={70}
+                                                    />
+                                                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                                                    <Tooltip content={<ChartTooltip />} />
+                                                    <Area
+                                                        type="monotone"
+                                                        dataKey="value"
+                                                        stroke="var(--primary)"
+                                                        strokeWidth={2}
+                                                        fill="url(#statusArea)"
+                                                    />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
+                            )}
                         </div>
+
                         <div className="rounded-xl border bg-card p-5">
                             <h3 className="mb-4 font-medium">Загрузка исполнителей (открытые)</h3>
-                            <BarChart rows={assigneeRows} labelKey="label" valueKey="value" />
+                            {!hasAssigneeData ? (
+                                <p className="text-sm text-muted-foreground">Нет назначенных исполнителей</p>
+                            ) : (
+                                <div className="h-[320px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            layout="vertical"
+                                            data={assigneeRows}
+                                            margin={{ top: 8, right: 16, left: 8, bottom: 8}}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={false} />
+                                            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                                            <YAxis
+                                                type="category"
+                                                dataKey="name"
+                                                width={120}
+                                                tick={{ fontSize: 11 }}
+                                            />
+                                            <Tooltip
+                                                content={({ active, payload, label }) => (
+                                                    <ChartTooltip active={active} payload={payload} label={label} />
+                                                )}
+                                            />
+                                            <Bar dataKey="value" name="Задач" fill="hsl(215.4 16.3% 46.9%)" radius={[0, 4, 4, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            )}
+                            <p className="mt-3 text-xs text-muted-foreground">
+                                Сравнение числа открытых задач по исполнителям (топ 10).
+                            </p>
                         </div>
                     </div>
                 </>

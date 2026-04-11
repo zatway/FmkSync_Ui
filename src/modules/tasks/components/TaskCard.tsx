@@ -13,6 +13,9 @@ import {useNavigate} from "react-router-dom";
 import {AppRoutes} from "@/app/routes/AppRoutes";
 import {ProjectTaskPriority} from "@/types/dto/enums/ProjectTaskPriority";
 
+/** Префикс id для @dnd-kit (разделение с колонками Kanban). */
+export const DND_TASK_ID_PREFIX = "task:";
+
 const priorityClass: Record<ProjectTaskPriority, string> = {
     [ProjectTaskPriority.Critical]: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300",
     [ProjectTaskPriority.High]: "bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300",
@@ -130,7 +133,7 @@ interface SortableProps {
  */
 export function TaskCard({task, projectId, doneColumnId, onCloseTask}: SortableProps) {
     const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
-        id: task.id,
+        id: `${DND_TASK_ID_PREFIX}${task.id}`,
     });
 
     const style: CSSProperties = {

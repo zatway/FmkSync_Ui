@@ -10,9 +10,17 @@ import {
     useSensor,
     useSensors,
     closestCorners,
-    useDroppable,
 } from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+    SortableContext,
+    arrayMove,
+    horizontalListSortingStrategy,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { CSSProperties } from "react";
 import {
     useChangeTaskStatusMutation,
     useGetTasksByProjectQuery,
@@ -20,12 +28,15 @@ import {
 import {
     useGetProjectTaskStatusColumnsQuery,
     useCreateProjectTaskStatusColumnMutation,
+    useReorderProjectTaskStatusColumnsMutation,
+    useUpdateProjectTaskStatusColumnMutation,
+    useDeleteProjectTaskStatusColumnMutation,
 } from "@/modules/projects/api/projectsApi";
 import { TaskShortDto } from "@/types/dto/tasks/TaskShortDto";
-import { TaskCard, TaskCardDragOverlay } from "./TaskCard";
+import { DND_TASK_ID_PREFIX, TaskCard, TaskCardDragOverlay } from "./TaskCard";
 import { Button } from "@/shared/ui_shadcn/button";
 import { Input } from "@/shared/ui_shadcn/input";
-import { Plus } from "lucide-react";
+import { Plus, GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppRoutes } from "@/app/routes/AppRoutes";
@@ -34,6 +45,34 @@ import { toast } from "sonner";
 import { getApiErrorMessage } from "@/shared/lib";
 import { cn } from "@/shared/lib/ui_shadcn/utils";
 import { resolveDoneColumnId } from "@/modules/tasks/lib/resolveDoneColumnId";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/shared/ui_shadcn/dropdown-menu";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/shared/ui_shadcn/dialog";
+import { Label } from "@/shared/ui_shadcn/label";
+
+/** Префикс id колонки для @dnd-kit (не пересекается с task id). */
+const DND_COL_PREFIX = "col:";
+
+function parseDragId(id: string): { kind: "task"; uuid: string } | { kind: "column"; uuid: string } | null {
+    if (id.startsWith(DND_TASK_ID_PREFIX)) {
+        return { kind: "task", uuid: id.slice(DND_TASK_ID_PREFIX.length) };
+    }
+    if (id.startsWith(DND_COL_PREFIX)) {
+        return { kind: "column", uuid: id.slice(DND_COL_PREFIX.length) };
+    }
+    return null;
+}
 
 interface ProjectKanbanBoardProps {
     projectId: string;
@@ -43,22 +82,34 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
     const { data: serverTasks = [], isFetching } = useGetTasksByProjectQuery(projectId);
     const { data: statusColumns = [], isFetching: colsLoading } = useGetProjectTaskStatusColumnsQuery(
         projectId,
-        { skip: !projectId }
+        { skip: !projectId },
     );
     const [changeStatus] = useChangeTaskStatusMutation();
     const [createColumn, { isLoading: creatingCol }] = useCreateProjectTaskStatusColumnMutation();
+    const [reorderColumns] = useReorderProjectTaskStatusColumnsMutation();
+    const [updateColumn, { isLoading: updatingCol }] = useUpdateProjectTaskStatusColumnMutation();
+    const [deleteColumn, { isLoading: deletingCol }] = useDeleteProjectTaskStatusColumnMutation();
     const navigate = useNavigate();
 
     const sortedColumns = useMemo(
         () => [...statusColumns].sort((a, b) => a.sortOrder - b.sortOrder),
-        [statusColumns]
+        [statusColumns],
     );
 
     const doneColumnId = useMemo(() => resolveDoneColumnId(sortedColumns), [sortedColumns]);
 
     const [columns, setColumns] = useState<Record<string, TaskShortDto[]>>({});
     const [activeTask, setActiveTask] = useState<TaskShortDto | null>(null);
+    const [activeColumn, setActiveColumn] = useState<TaskStatusColumnDto | null>(null);
     const [newColName, setNewColName] = useState("");
+
+    const [editOpen, setEditOpen] = useState(false);
+    const [editName, setEditName] = useState("");
+    const [editColor, setEditColor] = useState("");
+    const [columnBeingEdited, setColumnBeingEdited] = useState<TaskStatusColumnDto | null>(null);
+
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [columnBeingDeleted, setColumnBeingDeleted] = useState<TaskStatusColumnDto | null>(null);
 
     const tasksById = useMemo(() => {
         const m = new Map<string, TaskShortDto>();
@@ -90,43 +141,114 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
-            activationConstraint: { distance: 6 },
+            activationConstraint: { distance: 8 },
         }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
-        })
+        }),
     );
 
+    const openEdit = (col: TaskStatusColumnDto) => {
+        setColumnBeingEdited(col);
+        setEditName(col.name);
+        setEditColor(col.colorHex?.trim() ?? "");
+        setEditOpen(true);
+    };
+
+    const submitEdit = async () => {
+        if (!columnBeingEdited) return;
+        const name = editName.trim();
+        if (!name) {
+            toast.error("Укажите название");
+            return;
+        }
+        try {
+            await updateColumn({
+                projectId,
+                columnId: columnBeingEdited.id,
+                name,
+                colorHex: editColor.trim() || null,
+            }).unwrap();
+            toast.success("Колонка обновлена");
+            setEditOpen(false);
+            setColumnBeingEdited(null);
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
+        }
+    };
+
+    const confirmDelete = async () => {
+        if (!columnBeingDeleted) return;
+        try {
+            await deleteColumn({ projectId, columnId: columnBeingDeleted.id }).unwrap();
+            toast.success("Колонка удалена");
+            setDeleteOpen(false);
+            setColumnBeingDeleted(null);
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
+        }
+    };
+
     const handleDragStart = (event: DragStartEvent) => {
-        const task = tasksById.get(String(event.active.id));
-        if (task) setActiveTask(task);
+        setActiveTask(null);
+        setActiveColumn(null);
+        const p = parseDragId(String(event.active.id));
+        if (p?.kind === "task") {
+            const task = tasksById.get(p.uuid);
+            if (task) setActiveTask(task);
+        } else if (p?.kind === "column") {
+            const col = sortedColumns.find((c) => c.id === p.uuid);
+            if (col) setActiveColumn(col);
+        }
     };
 
     const handleDragEnd = async (event: DragEndEvent) => {
         const { active, over } = event;
         setActiveTask(null);
+        setActiveColumn(null);
         if (!over) return;
 
-        const activeTaskId = String(active.id);
-        const overId = String(over.id);
+        const activeParsed = parseDragId(String(active.id));
+        const overParsed = parseDragId(String(over.id));
+        if (!activeParsed || !overParsed) return;
 
+        if (activeParsed.kind === "column" && overParsed.kind === "column") {
+            if (activeParsed.uuid === overParsed.uuid) return;
+            const oldIndex = sortedColumns.findIndex((c) => c.id === activeParsed.uuid);
+            const newIndex = sortedColumns.findIndex((c) => c.id === overParsed.uuid);
+            if (oldIndex < 0 || newIndex < 0) return;
+            const reordered = arrayMove(sortedColumns, oldIndex, newIndex);
+            try {
+                await reorderColumns({
+                    projectId,
+                    orderedColumnIds: reordered.map((c) => c.id),
+                }).unwrap();
+                toast.success("Порядок колонок сохранён");
+            } catch (e) {
+                toast.error(getApiErrorMessage(e));
+            }
+            return;
+        }
+
+        if (activeParsed.kind !== "task") return;
+
+        const activeTaskId = activeParsed.uuid;
         const activeTaskRow = tasksById.get(activeTaskId);
         if (!activeTaskRow) return;
 
         let newStatusColumnId = activeTaskRow.status.id;
         let newOrder = activeTaskRow.sortOrder;
 
-        const columnHit = sortedColumns.find((c) => c.id === overId);
-        if (columnHit) {
-            newStatusColumnId = columnHit.id;
-            const others = (columns[columnHit.id] ?? []).filter((t) => t.id !== activeTaskId);
+        if (overParsed.kind === "column") {
+            newStatusColumnId = overParsed.uuid;
+            const others = (columns[newStatusColumnId] ?? []).filter((t) => t.id !== activeTaskId);
             newOrder = others.length;
         } else {
-            const overTask = tasksById.get(overId);
+            const overTask = tasksById.get(overParsed.uuid);
             if (overTask) {
                 newStatusColumnId = overTask.status.id;
                 const columnTasks = (columns[newStatusColumnId] ?? []).filter((t) => t.id !== activeTaskId);
-                const overIndex = columnTasks.findIndex((t) => t.id === overId);
+                const overIndex = columnTasks.findIndex((t) => t.id === overParsed.uuid);
                 newOrder = overIndex >= 0 ? overIndex : columnTasks.length;
             }
         }
@@ -149,7 +271,7 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
 
     const handleCloseTask = async (taskId: string) => {
         if (!doneColumnId) {
-            toast.error("Нет колонки для закрытых задач. Отметьте колонку «Готово» или задайте семантику Done.");
+            toast.error("Нет колонки для закрытых задач. Отметьте колонку «Закрыто» (готово).");
             return;
         }
         const taskRow = tasksById.get(taskId);
@@ -181,10 +303,12 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
         }
     };
 
+    const columnIds = useMemo(() => sortedColumns.map((c) => `${DND_COL_PREFIX}${c.id}`), [sortedColumns]);
+
     return (
-        <div className="space-y-4 min-h-0">
-            <div className="flex flex-col sm:flex-row flex-wrap justify-end gap-2 items-stretch sm:items-center">
-                <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center mr-auto w-full sm:w-auto">
+        <div className="min-h-0 space-y-4">
+            <div className="flex flex-col items-stretch justify-end gap-2 sm:flex-row sm:items-center">
+                <div className="mr-auto flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                     <Input
                         placeholder="Новая колонка"
                         value={newColName}
@@ -211,12 +335,14 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
                 </Button>
             </div>
 
+            <p className="text-xs text-muted-foreground">
+                Перетаскивайте колонки за иконку ⋮⋮, карточки задач — за саму карточку.
+            </p>
+
             {(isFetching || colsLoading) && <p className="text-sm text-muted-foreground">Загрузка…</p>}
 
             {!sortedColumns.length && !colsLoading && (
-                <p className="text-sm text-muted-foreground">
-                    Нет колонок статусов для проекта. Добавьте колонку выше.
-                </p>
+                <p className="text-sm text-muted-foreground">Нет колонок статусов для проекта. Добавьте колонку выше.</p>
             )}
 
             <DndContext
@@ -225,64 +351,194 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
             >
-                <div
-                    className={cn(
-                        "flex gap-4 sm:gap-6 overflow-x-auto pb-8 -mx-2 px-2 sm:mx-0 sm:px-0",
-                        "snap-x snap-mandatory sm:snap-none min-h-0"
-                    )}
-                >
-                    {sortedColumns.map((column: TaskStatusColumnDto) => (
-                        <KanbanColumn
-                            key={column.id}
-                            column={{ id: column.id, title: column.name }}
-                            tasks={columns[column.id] ?? []}
-                            projectId={projectId}
-                            doneColumnId={doneColumnId}
-                            onCloseTask={handleCloseTask}
-                        />
-                    ))}
-                </div>
+                <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
+                    <div
+                        className={cn(
+                            "flex min-h-0 gap-4 overflow-x-auto pb-8 sm:gap-6",
+                            "snap-x snap-mandatory sm:snap-none -mx-2 px-2 sm:mx-0 sm:px-0",
+                        )}
+                    >
+                        {sortedColumns.map((column) => (
+                            <SortableKanbanColumn
+                                key={column.id}
+                                column={column}
+                                tasks={columns[column.id] ?? []}
+                                projectId={projectId}
+                                doneColumnId={doneColumnId}
+                                onCloseTask={handleCloseTask}
+                                canDelete={sortedColumns.length > 3}
+                                onEdit={() => openEdit(column)}
+                                onRequestDelete={() => {
+                                    setColumnBeingDeleted(column);
+                                    setDeleteOpen(true);
+                                }}
+                            />
+                        ))}
+                    </div>
+                </SortableContext>
 
                 <DragOverlay dropAnimation={null}>
                     {activeTask ? <TaskCardDragOverlay task={activeTask} projectId={projectId} /> : null}
+                    {activeColumn ? (
+                        <div className="bg-muted/90 w-[min(100vw-2rem,340px)] rounded-xl border border-border p-4 shadow-lg sm:w-[340px]">
+                            <p className="font-semibold">{activeColumn.name}</p>
+                            <p className="text-xs text-muted-foreground">Колонка</p>
+                        </div>
+                    ) : null}
                 </DragOverlay>
             </DndContext>
+
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogContent className="sm:max-w-md" showCloseButton>
+                    <DialogHeader>
+                        <DialogTitle>Редактировать колонку</DialogTitle>
+                        <DialogDescription>Название и цвет отображения (необязательно).</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="col-name">Название</Label>
+                            <Input
+                                id="col-name"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                maxLength={120}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="col-color">Цвет (#RRGGBB)</Label>
+                            <Input
+                                id="col-color"
+                                value={editColor}
+                                onChange={(e) => setEditColor(e.target.value)}
+                                placeholder="#6366f1"
+                                maxLength={8}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+                            Отмена
+                        </Button>
+                        <Button type="button" onClick={() => void submitEdit()} disabled={updatingCol}>
+                            Сохранить
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <DialogContent className="sm:max-w-md" showCloseButton>
+                    <DialogHeader>
+                        <DialogTitle>Удалить колонку?</DialogTitle>
+                        <DialogDescription>
+                            {columnBeingDeleted ? (
+                                <>
+                                    Колонка «{columnBeingDeleted.name}» будет удалена. Задачи из неё будут перенесены в
+                                    соседнюю колонку (слева или справа).
+                                </>
+                            ) : null}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)}>
+                            Отмена
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => void confirmDelete()}
+                            disabled={deletingCol}
+                        >
+                            Удалить
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
 
-function KanbanColumn({
+function SortableKanbanColumn({
     column,
     tasks,
     projectId,
     doneColumnId,
     onCloseTask,
+    canDelete,
+    onEdit,
+    onRequestDelete,
 }: {
-    column: { id: string; title: string };
+    column: TaskStatusColumnDto;
     tasks: TaskShortDto[];
     projectId: string;
     doneColumnId: string | null;
     onCloseTask: (taskId: string) => void | Promise<void>;
+    canDelete: boolean;
+    onEdit: () => void;
+    onRequestDelete: () => void;
 }) {
-    const { setNodeRef, isOver } = useDroppable({ id: column.id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: `${DND_COL_PREFIX}${column.id}`,
+    });
+
+    const style: CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    };
+
+    const taskIds = useMemo(() => tasks.map((t) => `${DND_TASK_ID_PREFIX}${t.id}`), [tasks]);
 
     return (
         <div
             ref={setNodeRef}
+            style={style}
             className={cn(
-                "snap-start shrink-0 w-[min(100vw-2rem,340px)] sm:w-[340px] bg-muted/40 rounded-xl p-3 sm:p-4 flex flex-col border border-border/40",
-                isOver && "ring-2 ring-primary/30 h-full"
+                "border-border/40 bg-muted/40 flex w-[min(100vw-2rem,340px)] shrink-0 snap-start flex-col rounded-xl border p-3 sm:w-[340px] sm:p-4",
+                isDragging && "opacity-60",
             )}
         >
-            <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center justify-between gap-2">
-                <span className="truncate">{column.title}</span>
-                <span className="text-xs sm:text-sm text-muted-foreground bg-background px-2 py-1 rounded-full shrink-0">
-                    {tasks.length}
-                </span>
-            </h2>
+            <div className="mb-3 flex items-center gap-2 sm:mb-4">
+                <button
+                    type="button"
+                    className={cn(
+                        "text-muted-foreground hover:text-foreground touch-none rounded-md p-1",
+                        "cursor-grab active:cursor-grabbing",
+                    )}
+                    aria-label="Переместить колонку"
+                    title="Переместить колонку"
+                    {...attributes}
+                    {...listeners}
+                >
+                    <GripVertical className="h-5 w-5" />
+                </button>
+                <h2 className="flex min-w-0 flex-1 items-center gap-2 text-base font-semibold sm:text-lg">
+                    <span className="truncate">{column.name}</span>
+                    <span className="bg-background text-muted-foreground shrink-0 rounded-full px-2 py-1 text-xs sm:text-sm">
+                        {tasks.length}
+                    </span>
+                </h2>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Действия с колонкой</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={onEdit}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Изменить
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={!canDelete} onClick={onRequestDelete}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {!canDelete ? "Нельзя удалить (мин. 3 колонки)" : "Удалить"}
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
 
-            <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-                <div className="flex flex-col gap-2 sm:gap-3 flex-1 min-h-0">
+            <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+                <div className="flex min-h-0 flex-1 flex-col gap-2 sm:gap-3">
                     {tasks.map((task) => (
                         <TaskCard
                             key={task.id}

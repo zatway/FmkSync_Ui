@@ -75,7 +75,7 @@ const ForgotPasswordPage = () => {
                             <Button
                                 type="submit"
                                 className="w-full"
-                                disabled={isLoading || !form.formState.isValid}
+                                disabled={isLoading}
                             >
                                 Отправить ссылку
                             </Button>

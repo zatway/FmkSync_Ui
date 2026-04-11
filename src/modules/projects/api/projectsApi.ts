@@ -54,6 +54,59 @@ export const projectsApi = api.injectEndpoints({
             invalidatesTags: (_, __, { projectId }) => [{ type: "TaskStatusColumns", id: projectId }],
         }),
 
+        reorderProjectTaskStatusColumns: builder.mutation<
+            void,
+            { projectId: string; orderedColumnIds: string[] }
+        >({
+            query: ({ projectId, orderedColumnIds }) => ({
+                url: getUrl(`/${projectId}/task-status-columns/reorder`),
+                method: "PATCH",
+                data: { orderedColumnIds },
+            }),
+            invalidatesTags: (_, __, { projectId }) => [
+                { type: "TaskStatusColumns", id: projectId },
+                { type: "Task", id: "LIST" },
+                { type: "Project", id: projectId },
+            ],
+        }),
+
+        updateProjectTaskStatusColumn: builder.mutation<
+            void,
+            { projectId: string; columnId: string; name: string; colorHex?: string | null }
+        >({
+            query: ({ projectId, columnId, name, colorHex }) => ({
+                url: getUrl(`/${projectId}/task-status-columns/${columnId}`),
+                method: "PATCH",
+                data: { name, colorHex },
+            }),
+            invalidatesTags: (_, __, { projectId }) => [
+                { type: "TaskStatusColumns", id: projectId },
+                { type: "Task", id: "LIST" },
+                { type: "Project", id: projectId },
+            ],
+        }),
+
+        deleteProjectTaskStatusColumn: builder.mutation<
+            void,
+            { projectId: string; columnId: string; moveTasksToColumnId?: string }
+        >({
+            query: ({ projectId, columnId, moveTasksToColumnId }) => ({
+                url: getUrl(
+                    `/${projectId}/task-status-columns/${columnId}${
+                        moveTasksToColumnId
+                            ? `?moveTasksToColumnId=${encodeURIComponent(moveTasksToColumnId)}`
+                            : ""
+                    }`,
+                ),
+                method: "DELETE",
+            }),
+            invalidatesTags: (_, __, { projectId }) => [
+                { type: "TaskStatusColumns", id: projectId },
+                { type: "Task", id: "LIST" },
+                { type: "Project", id: projectId },
+            ],
+        }),
+
         createProject: builder.mutation<string, CreateProjectRequest>({
             query: (data) => ({
                 url: getUrl(""),
@@ -167,6 +220,9 @@ export const {
     useGetProjectByIdQuery,
     useGetProjectTaskStatusColumnsQuery,
     useCreateProjectTaskStatusColumnMutation,
+    useReorderProjectTaskStatusColumnsMutation,
+    useUpdateProjectTaskStatusColumnMutation,
+    useDeleteProjectTaskStatusColumnMutation,
     useCreateProjectMutation,
     useUpdateProjectMutation,
     useDeleteProjectMutation,

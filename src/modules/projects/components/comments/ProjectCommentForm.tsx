@@ -127,7 +127,7 @@ export function ProjectCommentForm({projectId, parentId, onSuccess, initialValue
                 />
 
                 <div className="flex justify-end">
-                    <Button type="submit" disabled={isLoading || uploading || !form.formState.isValid}>
+                    <Button type="submit" disabled={isLoading || uploading}>
                         <Send className="mr-2 h-4 w-4"/>
                         {isLoading ? "Отправка..." : parentId ? "Ответить" : "Отправить"}
                     </Button>

@@ -42,7 +42,7 @@ export function ProjectOverview({ project }: Props) {
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                         <StatItem title="Всего задач" value={project.taskStats?.total || 0} />
-                        <StatItem title="Открыто" value={project.taskStats?.open || 0} color="text-amber-600" />
+                        <StatItem title="Открыта" value={project.taskStats?.open || 0} color="text-amber-600" />
                         <StatItem title="Участники" value={project.members?.length || 0} />
                         <StatItem
                             title="Последняя активность"

@@ -31,6 +31,13 @@ import { Checkbox } from "@/shared/ui_shadcn/checkbox";
 import { ProjectTaskPriority } from "@/types/dto/enums/ProjectTaskPriority";
 import type { TaskStatusColumnDto } from "@/types/dto/tasks/TaskStatusColumnDto";
 
+export const TASK_PRIORITY_LABELS: Record<ProjectTaskPriority, string> = {
+    [ProjectTaskPriority.Low]: "Низкий",
+    [ProjectTaskPriority.Medium]: "Средний",
+    [ProjectTaskPriority.High]: "Высокий",
+    [ProjectTaskPriority.Critical]: "Критический",
+};
+
 const schema = z.object({
     title: z.string().min(1, "Укажите название").max(500),
     description: z.string().max(4000).optional().or(z.literal("")),
@@ -162,7 +169,7 @@ export function TaskForm({
                                     <SelectContent>
                                         {Object.values(ProjectTaskPriority).map((p) => (
                                             <SelectItem key={p} value={p}>
-                                                {p}
+                                                {TASK_PRIORITY_LABELS[p]}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -322,7 +329,7 @@ export function TaskForm({
 
                 <Button
                     type="submit"
-                    disabled={isLoading || !sortedColumns.length || !form.formState.isValid}
+                    disabled={isLoading || !sortedColumns.length}
                 >
                     {submitLabel}
                 </Button>

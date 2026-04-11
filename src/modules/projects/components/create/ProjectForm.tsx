@@ -101,7 +101,7 @@ export default function ProjectForm({
         },
     });
 
-    const isSubmitDisabled = !form.formState.isValid || isLoading;
+    const isSubmitDisabled = isLoading;
 
     return (
         <Form {...form}>
@@ -352,7 +352,7 @@ export default function ProjectForm({
                         disabled={isSubmitDisabled}
                         className={cn(
                             "min-w-[180px] h-12 text-base transition-all",
-                            isSubmitDisabled && "opacity-70 cursor-not-allowed"
+                            isLoading && "opacity-70 cursor-not-allowed"
                         )}
                     >
                         {isLoading ? (
