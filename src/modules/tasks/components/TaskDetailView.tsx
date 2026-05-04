@@ -154,14 +154,14 @@ export function TaskDetailView() {
     if (!projectId || !taskId) return null;
     if (isLoading || !task) {
         return (
-            <div className="container mx-auto py-8 px-4">
+            <div className="container mx-auto min-w-0 max-w-full px-3 py-6 sm:px-4 sm:py-8">
                 <p className="text-muted-foreground">{isLoading ? "Загрузка…" : "Задача не найдена"}</p>
             </div>
         );
     }
 
     return (
-        <div className="container mx-auto py-6 sm:py-8 px-3 sm:px-4 max-w-4xl space-y-6">
+        <div className="container mx-auto w-full min-w-0 max-w-4xl space-y-5 px-3 py-5 sm:space-y-6 sm:px-4 sm:py-7 lg:py-8">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <Button
                     variant="ghost"

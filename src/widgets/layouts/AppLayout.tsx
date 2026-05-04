@@ -9,7 +9,7 @@ const AppLayout = () => {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
     return (
-        <div className="flex h-[100dvh] overflow-hidden bg-background">
+        <div className="flex h-dvh min-h-0 w-full min-w-0 max-w-full overflow-hidden bg-background">
             {mobileNavOpen && (
                 <button
                     type="button"
@@ -31,10 +31,13 @@ const AppLayout = () => {
                     onNavigate={() => setMobileNavOpen(false)}
                 />
             </aside>
-            <div className="flex flex-col flex-1 min-w-0">
+            <div className="flex min-w-0 flex-1 flex-col max-w-full">
                 <Header onOpenMobileNav={() => setMobileNavOpen(true)} />
-                <main className="flex-1 overflow-auto p-4 sm:p-6">
-                    <Outlet />
+                <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-x-contain overscroll-y-contain p-3 sm:p-5 lg:p-6">
+                    {/* без flex-1: иначе блок растягивается на всю высоту main и даёт прокрутку «в пустоту» на телефонах */}
+                    <div className="mx-auto w-full min-w-0 max-w-full min-h-0">
+                        <Outlet />
+                    </div>
                 </main>
             </div>
         </div>

@@ -133,7 +133,7 @@ export function KnowledgeBaseView() {
     };
 
     return (
-        <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-8">
+        <div className="mx-auto w-full min-w-0 max-w-5xl space-y-5 p-3 sm:space-y-6 sm:p-5 md:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <ListTree className="h-7 w-7 text-primary"/>

@@ -25,7 +25,7 @@ export function KanbanColumn({
     return (
         <div
             className={cn(
-                "flex flex-col min-w-[340px] m-h-[400px] h-screen bg-muted/20 rounded-xl border border-border/30 overflow-hidden shadow-sm bg-card:",
+                "flex max-h-[min(70dvh,720px)] min-h-0 min-w-[min(100%,280px)] max-w-[340px] flex-col overflow-hidden rounded-xl border border-border/30 bg-card bg-muted/20 shadow-sm sm:min-w-[340px]",
             )}
         >
             <ColumnHeader title={title} count={tasks.length} color={color} />

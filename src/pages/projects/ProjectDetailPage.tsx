@@ -44,7 +44,7 @@ export default function ProjectDetailPage() {
     }
 
     return (
-        <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto min-w-0 max-w-full py-6 px-3 sm:py-8 sm:px-5 lg:px-8">
             <ProjectDetailHeader project={project}/>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-10">

@@ -17,7 +17,7 @@ export function TaskColumn({ column, tasks, projectId }: Props) {
     return (
         <div
             ref={setNodeRef}
-            className="bg-muted/40 rounded-xl p-4 min-w-[320px] flex flex-col"
+            className="flex min-w-[min(100%,280px)] max-w-[340px] flex-col rounded-xl bg-muted/40 p-3 sm:min-w-[320px] sm:p-4"
         >
             <h2 className="text-lg font-semibold mb-4 flex items-center justify-between">
                 {column.title}

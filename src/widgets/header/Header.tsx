@@ -22,7 +22,7 @@ const Header = ({ onOpenMobileNav }: Props) => {
     const navigate = useNavigate();
 
     return (
-        <header className="h-14 sm:h-16 border-b bg-background flex items-center justify-between px-4 sm:px-6 shrink-0 gap-2">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b bg-background px-3 sm:h-16 sm:px-5 lg:px-6">
             <div className="flex items-center gap-2 min-w-0 flex-1">
                 <Button
                     type="button"

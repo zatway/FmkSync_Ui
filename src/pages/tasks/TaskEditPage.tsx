@@ -48,7 +48,7 @@ export default function TaskEditPage() {
     const deadlineStr = task?.deadline ? format(parseISO(task.deadline), 'yyyy-MM-dd') : ''
 
     return (
-        <div className='container mx-auto py-8 px-4 max-w-3xl'>
+        <div className="container mx-auto w-full min-w-0 max-w-3xl px-3 py-6 sm:px-4 sm:py-8">
             <Button variant='ghost' className='mb-6' onClick={() => navigate(-1)}><ArrowLeft className='mr-2 h-4 w-4' />Назад</Button>
             <h1 className='text-2xl font-bold mb-6'>Редактирование задачи</h1>
             {taskLoading && <p className='text-muted-foreground'>Загрузка…</p>}

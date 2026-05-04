@@ -58,7 +58,7 @@ export default function TaskCreatePage() {
     const defaultColumnId = [...statusColumns].sort((a, b) => a.sortOrder - b.sortOrder)[0]?.id ?? ''
 
     return (
-        <div className='container mx-auto py-8 px-4 max-w-3xl'>
+        <div className="container mx-auto w-full min-w-0 max-w-3xl px-3 py-6 sm:px-4 sm:py-8">
             <Button variant='ghost' className='mb-6' onClick={() => navigate(-1)}><ArrowLeft className='mr-2 h-4 w-4' />Назад</Button>
             <h1 className='text-2xl font-bold mb-6'>Новая задача</h1>
             {project && !statusColumns.length && (

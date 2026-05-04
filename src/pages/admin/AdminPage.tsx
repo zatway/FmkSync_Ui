@@ -175,8 +175,8 @@ const AdminPage = () => {
     };
 
     return (
-        <div className="space-y-6">
-            <h1 className="text-2xl font-bold">Админ-панель</h1>
+        <div className="min-w-0 max-w-full space-y-5 sm:space-y-6">
+            <h1 className="text-xl font-bold sm:text-2xl">Админ-панель</h1>
 
             <Card>
                 <CardHeader>

@@ -16,16 +16,16 @@ export function ProjectDetailHeader({ project }: Props) {
     const [deleteProject, {isLoading}] = useDeleteProjectMutation();
 
     return (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-            <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
                 <div
                     className="h-14 w-14 rounded-xl flex items-center justify-center text-3xl shadow-md"
                     style={{ backgroundColor: project.color ? `${project.color}30` : "#3b82f630" }}
                 >
                     {project.icon || "📁"}
                 </div>
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">{project.name}</h1>
+                <div className="min-w-0">
+                    <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">{project.name}</h1>
                     <div className="flex items-center gap-3 mt-1">
                         <Badge variant="outline" className="text-base px-3 py-1">
                             {project.key}

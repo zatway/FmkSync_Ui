@@ -60,7 +60,7 @@ export default function ProfilePage() {
     };
 
     return (
-        <div className="container max-w-3xl mx-auto py-8 px-4 space-y-6">
+        <div className="container mx-auto min-w-0 max-w-3xl space-y-5 px-3 py-6 sm:space-y-6 sm:px-4 sm:py-8">
             <h1 className="text-2xl font-bold">Профиль</h1>
 
             <Card>

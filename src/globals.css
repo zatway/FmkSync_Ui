@@ -96,7 +96,22 @@
     * {
         @apply border-border;
     }
+    html {
+        overflow-x: hidden;
+        max-width: 100%;
+        overscroll-behavior-x: none;
+    }
     body {
         @apply bg-background text-foreground;
+        overflow-x: hidden;
+        max-width: 100%;
+        overscroll-behavior-x: none;
+    }
+    /* без min-height: 100dvh — иначе вместе с h-dvh у лейаута на мобилках накапливается лишняя высота */
+    #root {
+        max-width: 100%;
+        min-height: 0;
+        overflow-x: hidden;
+        overscroll-behavior-x: none;
     }
 }

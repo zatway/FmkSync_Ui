@@ -10,6 +10,7 @@ import {
     useSensor,
     useSensors,
     closestCorners,
+    type Modifier,
 } from "@dnd-kit/core";
 import {
     SortableContext,
@@ -19,6 +20,7 @@ import {
     useSortable,
     verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { restrictToWindowEdges } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
 import type { CSSProperties } from "react";
 import {
@@ -37,7 +39,7 @@ import { DND_TASK_ID_PREFIX, TaskCard, TaskCardDragOverlay } from "./TaskCard";
 import { Button } from "@/shared/ui_shadcn/button";
 import { Input } from "@/shared/ui_shadcn/input";
 import { Plus, GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppRoutes } from "@/app/routes/AppRoutes";
 import type { TaskStatusColumnDto } from "@/types/dto/tasks/TaskStatusColumnDto";
@@ -68,8 +70,31 @@ import {
     SelectValue,
 } from "@/shared/ui_shadcn/select";
 
-/** Префикс id колонки для @dnd-kit (не пересекается с task id). */
 const DND_COL_PREFIX = "col:";
+
+function clampTransformToBounds<T extends { x: number; y: number }>(
+    transform: T,
+    draggingRect: { top: number; left: number; bottom: number; right: number },
+    bounds: { top: number; left: number; height: number; width: number },
+): T {
+    const next = { ...transform };
+    const bBottom = bounds.top + bounds.height;
+    const bRight = bounds.left + bounds.width;
+
+    if (draggingRect.top + transform.y <= bounds.top) {
+        next.y = bounds.top - draggingRect.top;
+    } else if (draggingRect.bottom + transform.y >= bBottom) {
+        next.y = bBottom - draggingRect.bottom;
+    }
+
+    if (draggingRect.left + transform.x <= bounds.left) {
+        next.x = bounds.left - draggingRect.left;
+    } else if (draggingRect.right + transform.x >= bRight) {
+        next.x = bRight - draggingRect.right;
+    }
+
+    return next;
+}
 
 type NewColumnKind = "0" | "1" | "2" | "3" | "4" | "255";
 
@@ -112,6 +137,8 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
     /** Стабильные пустые массивы: `data ?? []` в дефолте аргумента даёт новый [] на каждом рендере → useEffect + setColumns = infinite loop. */
     const emptyTasksRef = useRef<TaskShortDto[]>([]);
     const emptyColumnsRef = useRef<TaskStatusColumnDto[]>([]);
+    /** Видимая полоса с горизонтальным скроллом — ограничиваем drag по левому/правому краю доски (не только окна). */
+    const boardStripRef = useRef<HTMLDivElement>(null);
 
     const { data: serverTasksData, isFetching } = useGetTasksByProjectQuery(projectId);
     const { data: statusColumnsData, isFetching: colsLoading } = useGetProjectTaskStatusColumnsQuery(
@@ -370,6 +397,32 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
 
     const columnIds = useMemo(() => sortedColumns.map((c) => `${DND_COL_PREFIX}${c.id}`), [sortedColumns]);
 
+    const restrictToKanbanStrip: Modifier = useCallback(({ transform, draggingNodeRect }) => {
+        const el = boardStripRef.current;
+        if (!draggingNodeRect || !el) return transform;
+        const b = el.getBoundingClientRect();
+        return clampTransformToBounds(transform, draggingNodeRect, b);
+    }, []);
+
+    const dragModifiers = useMemo(
+        () => [restrictToKanbanStrip, restrictToWindowEdges],
+        [restrictToKanbanStrip],
+    );
+
+    /** Иначе @dnd-kit автоскроллит document/main вправо, когда курсор у края — «едет вся страница». */
+    const autoScrollCanScroll = useCallback((element: Element) => {
+        const strip = boardStripRef.current;
+        if (!strip) return false;
+        return strip.contains(element);
+    }, []);
+
+    const autoScrollOptions = useMemo(
+        () => ({
+            canScroll: autoScrollCanScroll,
+        }),
+        [autoScrollCanScroll],
+    );
+
     return (
         <div className="min-h-0 space-y-4">
             <div className="flex flex-col items-stretch justify-end gap-2 sm:flex-row sm:items-center">
@@ -413,9 +466,10 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
                     type="button"
                     onClick={() => navigate(`${AppRoutes.TASKS}/${projectId}/create`)}
                     className="shrink-0"
+                    aria-label="Новая задача"
                 >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Новая задача
+                    <Plus className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Новая задача</span>
                 </Button>
             </div>
 
@@ -432,16 +486,20 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
             <DndContext
                 sensors={sensors}
                 collisionDetection={closestCorners}
+                modifiers={dragModifiers}
+                autoScroll={autoScrollOptions}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
             >
                 <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
                     <div
+                        ref={boardStripRef}
                         className={cn(
-                            "flex min-h-0 gap-4 overflow-x-auto pb-8 sm:gap-6",
-                            "snap-x snap-mandatory sm:snap-none -mx-2 px-2 sm:mx-0 sm:px-0",
+                            "w-full min-w-0 overflow-x-auto overflow-y-visible overscroll-x-contain pb-6 pt-0.5 sm:pb-8",
+                            "snap-x snap-mandatory sm:snap-none",
                         )}
                     >
+                        <div className="flex min-h-0 w-max min-w-0 justify-start gap-3 sm:gap-6">
                         {sortedColumns.map((column) => (
                             <SortableKanbanColumn
                                 key={column.id}
@@ -458,13 +516,14 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
                                 }}
                             />
                         ))}
+                        </div>
                     </div>
                 </SortableContext>
 
                 <DragOverlay dropAnimation={null}>
                     {activeTask ? <TaskCardDragOverlay task={activeTask} projectId={projectId} /> : null}
                     {activeColumn ? (
-                        <div className="bg-muted/90 w-[min(100vw-2rem,340px)] rounded-xl border border-border p-4 shadow-lg sm:w-[340px]">
+                        <div className="bg-muted/90 w-[min(100%,340px)] max-w-[340px] rounded-xl border border-border p-4 shadow-lg sm:w-[340px]">
                             <p className="font-semibold">{activeColumn.name}</p>
                             <p className="text-xs text-muted-foreground">Колонка</p>
                         </div>
@@ -578,7 +637,7 @@ function SortableKanbanColumn({
             ref={setNodeRef}
             style={style}
             className={cn(
-                "border-border/40 bg-muted/40 flex w-[min(100vw-2rem,340px)] shrink-0 snap-start flex-col rounded-xl border p-3 sm:w-[340px] sm:p-4",
+                "border-border/40 bg-muted/40 flex w-[min(100%,340px)] max-w-[340px] shrink-0 snap-start flex-col rounded-xl border p-3 sm:w-[340px] sm:max-w-none sm:p-4",
                 isDragging && "opacity-60",
             )}
         >
