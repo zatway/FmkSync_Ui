@@ -11,7 +11,7 @@ export const Logo: FC<LogoProps> = ({width, height}) => {
         <img
             style={{width: width, height: height}}
             src={logo}
-            alt="KomSync Logo"
+            alt="FMK Sync Logo"
             className="h-10 w-auto"
         />
     );

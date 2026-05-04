@@ -34,7 +34,7 @@ const Sidebar = ({ onNavigate }: Props) => {
     return (
         <aside className={cn('bg-card flex flex-col h-full w-full', collapsed ? '' : '')}>
             <div className='flex items-center justify-between p-4 border-b'>
-                {!collapsed && <span className='font-bold text-lg truncate'>KomSync</span>}
+                {!collapsed && <span className='font-bold text-lg truncate'>FMK Sync</span>}
                 <Button size='icon' variant='ghost' className='hidden md:flex' onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Развернуть' : 'Свернуть'}>
                     <Menu size={20} />
                 </Button>

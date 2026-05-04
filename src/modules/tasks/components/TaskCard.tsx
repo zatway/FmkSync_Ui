@@ -13,7 +13,6 @@ import {useNavigate} from "react-router-dom";
 import {AppRoutes} from "@/app/routes/AppRoutes";
 import {ProjectTaskPriority} from "@/types/dto/enums/ProjectTaskPriority";
 
-/** Префикс id для @dnd-kit (разделение с колонками Kanban). */
 export const DND_TASK_ID_PREFIX = "task:";
 
 const priorityClass: Record<ProjectTaskPriority, string> = {
@@ -26,13 +25,11 @@ const priorityClass: Record<ProjectTaskPriority, string> = {
 type ContentProps = {
     task: TaskShortDto;
     projectId: string;
-    /** Визуальное состояние при перетаскивании (оверлей) */
     overlayStyle?: boolean;
     doneColumnId?: string | null;
     onCloseTask?: (taskId: string) => void | Promise<void>;
 };
 
-/** Только разметка — без dnd-хуков (для DragOverlay и переиспользования). */
 function TaskCardContent({task, projectId, overlayStyle, doneColumnId, onCloseTask}: ContentProps) {
     const navigate = useNavigate();
     const due = task.deadline;
