@@ -1,3 +1,4 @@
+import type { FC } from "react";
 import {useForm} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {z} from "zod";
@@ -62,22 +63,34 @@ interface ProjectFormProps {
     onSubmit: (values: ProjectFormValues) => Promise<string | undefined>;
     isLoading?: boolean;
     initialValues?: Partial<ProjectFormValues>;
+    /** По умолчанию показывается toast об успешном сохранении (страница редактирования может отключить). */
+    showSuccessToast?: boolean;
+    /** По умолчанию после успеха выполняется переход на карточку проекта. */
+    navigateToProjectAfterSubmit?: boolean;
+    successToastMessage?: string;
 }
 
-export default function ProjectForm({
-                                        submitLabel = "Создать проект",
-                                        onSubmit,
-                                        isLoading = false,
-                                        initialValues = {},
-                                    }: ProjectFormProps) {
+const ProjectForm: FC<ProjectFormProps> = ({
+    submitLabel = "Создать проект",
+    onSubmit,
+    isLoading = false,
+    initialValues = {},
+    showSuccessToast = true,
+    navigateToProjectAfterSubmit = true,
+    successToastMessage,
+}) => {
     const navigate = useNavigate();
 
     const handleSubmit = async (value: ProjectFormValues) => {
         try {
             const createdId = await onSubmit(value)
             if(!createdId) throw new Error();
-            toast.success("Проект успешно создан");
-            navigate(`${AppRoutes.PROJECTS}/${createdId}`);
+            if (showSuccessToast) {
+                toast.success(successToastMessage ?? "Проект успешно создан");
+            }
+            if (navigateToProjectAfterSubmit) {
+                navigate(`${AppRoutes.PROJECTS}/${createdId}`);
+            }
         } catch (e) {
             toast.error(getApiErrorMessage(e));
         }
@@ -370,4 +383,6 @@ export default function ProjectForm({
             </form>
         </Form>
     );
-}
+};
+
+export default ProjectForm;

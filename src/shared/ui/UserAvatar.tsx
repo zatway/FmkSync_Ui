@@ -12,21 +12,32 @@ const sizeClass: Record<Size, string> = {
     lg: "h-12 w-12",
 };
 
-/** Подгружает аватар отдельным запросом (не блокирует список). */
+/** Подгружает аватар отдельным запросом только если `hasAvatar` (с бэка). Иначе — только буква в круге. */
 export function UserAvatar({
     userId,
     name,
+    hasAvatar,
     className,
     size = "md",
 }: {
     userId: string;
     name?: string | null;
+    /** С сервера: есть ли сохранённое фото. Без флага запрос к `/avatar` не делается. */
+    hasAvatar: boolean;
     className?: string;
     size?: Size;
 }) {
     const [src, setSrc] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!hasAvatar) {
+            setSrc((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return null;
+            });
+            return;
+        }
+
         let cancelled = false;
         let objectUrl: string | null = null;
 
@@ -51,7 +62,7 @@ export function UserAvatar({
             cancelled = true;
             if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
-    }, [userId]);
+    }, [userId, hasAvatar]);
 
     const initial = name?.trim()?.[0]?.toUpperCase() ?? "?";
 

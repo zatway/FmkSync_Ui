@@ -15,8 +15,13 @@ export function ProjectTeam({project}: Props) {
             </CardHeader>
             <CardContent>
                 <div className="flex items-center gap-3 mb-6">
-                    <UserAvatar userId={project.owner.id} name={project.owner.name}
-                                className="h-12 w-12"/>
+                    <UserAvatar
+                        userId={project.owner.id}
+                        name={project.owner.name}
+                        hasAvatar={project.owner.hasAvatar === true}
+                        size="lg"
+                        className="h-12 w-12"
+                    />
                     <div>
                         <p className="font-medium">{project.owner.name}</p>
                         <p className="text-sm text-muted-foreground">Владелец проекта</p>
@@ -30,8 +35,13 @@ export function ProjectTeam({project}: Props) {
                             <p className="text-sm font-medium">Участники ({project.members.length})</p>
                             <div className="flex -space-x-2">
                                 {project.members.slice(0, 5).map((member) => (
-                                    <UserAvatar userId={member.id} name={member.name}
-                                                className="h-8 w-8 border-2 border-background"/>
+                                    <UserAvatar
+                                        userId={member.id}
+                                        name={member.name}
+                                        hasAvatar={member.hasAvatar === true}
+                                        size="sm"
+                                        className="h-8 w-8 border-2 border-background"
+                                    />
                                 ))}
                                 {project.members.length > 5 && (
                                     <div

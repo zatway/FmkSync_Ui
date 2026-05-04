@@ -48,6 +48,12 @@ const ProjectItem: FC<ProjectItemProps> = ({
                     )
                 }
             >
+                {isCollapsed && (
+                    <span className="text-base leading-none" aria-hidden="true">
+                        {project.icon || "📁"}
+                    </span>
+                )}
+
                 {!isCollapsed && (
                     <>
                         <span className="truncate flex-1" title={project.name}>{nameProject}</span>

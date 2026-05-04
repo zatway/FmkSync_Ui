@@ -37,6 +37,11 @@ export function ProjectOverview({ project }: Props) {
                                 <span>{project.progress}%</span>
                             </div>
                             <Progress value={project.progress} className="h-3" />
+                            {project.taskStats?.total === 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    Доля завершённых задач появится после добавления задач в проект.
+                                </p>
+                            )}
                         </div>
                     )}
 

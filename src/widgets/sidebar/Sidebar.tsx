@@ -1,8 +1,7 @@
 "use client"
 
-import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
-import { LogOut, Menu } from 'lucide-react'
+import {NavLink, useLocation, useNavigate} from 'react-router-dom'
+import { LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Button } from '@/shared/ui_shadcn/button'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/shared/ui_shadcn/accordion'
 import { useLogoutMutation } from '@/modules/auth/api/authApi'
@@ -11,15 +10,21 @@ import { sidebarItems } from '@/widgets/sidebar/SidebarItems'
 import { AccordionProjectsItem } from '@/modules/projects'
 import { authLocalService } from '@/shared/lib'
 import { UserRole } from '@/types/dto/enums/UserRole'
+import {Logo} from "@/shared/ui/Logo/Logo";
+import {useTheme} from "@/shared/hooks";
+import {AppRoutes} from "@/app/routes/AppRoutes";
 
 type Props = {
+    collapsed: boolean
+    onToggleCollapse: () => void
     onNavigate?: () => void
 }
 
-const Sidebar = ({ onNavigate }: Props) => {
-    const [collapsed, setCollapsed] = useState(false)
+const Sidebar = ({ collapsed, onToggleCollapse, onNavigate }: Props) => {
     const [logout] = useLogoutMutation()
+    const { theme } = useTheme()
     const location = useLocation()
+    const navagigation = useNavigate()
     const isAdmin = authLocalService.getUserRole() === UserRole.Admin
     const items = sidebarItems.filter((i) => i.path !== '/admin' || isAdmin)
     const defaultOpen = items.find((item) => item.children?.some((child) => location.pathname.startsWith(child.path || '')))?.label
@@ -32,11 +37,19 @@ const Sidebar = ({ onNavigate }: Props) => {
         )
 
     return (
-        <aside className={cn('bg-card flex flex-col h-full w-full', collapsed ? '' : '')}>
-            <div className='flex items-center justify-between p-4 border-b'>
-                {!collapsed && <span className='font-bold text-lg truncate'>FMK Sync</span>}
-                <Button size='icon' variant='ghost' className='hidden md:flex' onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Развернуть' : 'Свернуть'}>
-                    <Menu size={20} />
+        <aside className='bg-card flex h-full w-full flex-col'>
+            <div className={cn('flex items-center border-b p-3', collapsed ? 'justify-center' : 'justify-between gap-2')}>
+                <div onClick={() => navagigation(AppRoutes.PROJECTS)} className={cn('overflow-hidden transition-all duration-300 cursor-pointer', collapsed ? 'w-0 opacity-0 md:w-0' : 'w-[140px] opacity-100')}>
+                    <Logo mode={theme} height={60} width={140}/>
+                </div>
+                <Button
+                    size='icon'
+                    variant='ghost'
+                    className='hidden shrink-0 md:inline-flex'
+                    onClick={onToggleCollapse}
+                    aria-label={collapsed ? 'Развернуть' : 'Свернуть'}
+                >
+                    {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
                 </Button>
             </div>
             <nav className='flex-1 overflow-y-auto p-3'>
@@ -54,14 +67,17 @@ const Sidebar = ({ onNavigate }: Props) => {
                                     className={({ isActive }) => linkClass(isActive)}
                                 >
                                     {Icon && <Icon size={20} className='min-w-[20px]' />}
-                                    {!collapsed && item.label}
+                                    {!collapsed && <span className='truncate'>{item.label}</span>}
                                 </NavLink>
                             )
                         }
                         return (
                             <AccordionItem key={item.label} value={item.label} className='border-none'>
                                 <AccordionTrigger className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition hover:bg-accent hover:no-underline', collapsed && 'justify-center px-0')} disabled={collapsed}>
-                                    <div className='flex items-center gap-3 flex-1'>{Icon && <Icon size={20} className='min-w-[20px]' />}{!collapsed && item.label}</div>
+                                    <div className='flex flex-1 items-center gap-3'>
+                                        {Icon && <Icon size={20} className='min-w-[20px]' />}
+                                        {!collapsed && <span className='truncate'>{item.label}</span>}
+                                    </div>
                                 </AccordionTrigger>
                                 {!collapsed && (
                                     <AccordionContent className='pb-1 pl-8'>

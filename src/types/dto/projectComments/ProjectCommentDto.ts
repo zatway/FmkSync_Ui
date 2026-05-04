@@ -8,6 +8,7 @@ export interface ProjectCommentDto {
         id: string;
         name: string;
         avatarUrl?: string;
+        hasAvatar?: boolean;
         email?: string;
     };
     createdAt: string;            // ISO

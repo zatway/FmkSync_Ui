@@ -52,7 +52,7 @@ const LoginForm = () => {
     return (
         <div className="w-full max-w-md rounded-2xl bg-card p-6 sm:p-8 shadow-lg border">
             <div className="flex justify-center mb-6">
-                <Logo height={70}/>
+                <Logo height={150} />
             </div>
 
             <div className="text-center mb-6">

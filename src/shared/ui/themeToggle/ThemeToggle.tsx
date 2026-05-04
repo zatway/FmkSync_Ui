@@ -3,7 +3,6 @@ import { Button } from "@/shared/ui_shadcn/button";
 import { useTheme } from "@/shared/hooks/useTheme";
 
 const ThemeToggle = () => {
-
     const { theme, toggleTheme } = useTheme();
 
     return (

@@ -8,4 +8,5 @@ export interface UpdateProjectRequest {
     icon?: string | null;
     tags?: string[];
     isArchived?: boolean | null;
+    departmentId?: string | null;
 }

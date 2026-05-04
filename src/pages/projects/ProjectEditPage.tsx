@@ -48,6 +48,8 @@ export default function ProjectEditPage() {
                 <ProjectForm
                     submitLabel="Сохранить изменения"
                     isLoading={isUpdating}
+                    showSuccessToast={false}
+                    navigateToProjectAfterSubmit={false}
                     initialValues={{
                         name: project.name,
                         key: project.key,
@@ -57,6 +59,7 @@ export default function ProjectEditPage() {
                         color: project.color,
                         icon: project.icon,
                         tags: project.tags || [],
+                        departmentId: project.departmentId ?? "",
                     }}
                     onSubmit={value => handleSubmit({
                         name: value.name,
@@ -68,6 +71,7 @@ export default function ProjectEditPage() {
                         icon: value.icon,
                         tags: value.tags,
                         isArchived: archived,
+                        departmentId: value.departmentId,
                     })}
                 />
             </div>

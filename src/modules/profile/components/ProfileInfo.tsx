@@ -5,19 +5,26 @@ import {useEffect, useState} from "react";
 import {DropdownMenuTrigger} from "@/shared/ui_shadcn/dropdown-menu";
 
 export function ProfileInfo() {
-    const {data: user} = useGetMeInfoQuery();
-    const {data: avatar} = useGetMeAvatarQuery();
+    const { data: user } = useGetMeInfoQuery();
+    const { data: avatar } = useGetMeAvatarQuery(undefined, { skip: !user?.hasAvatar });
 
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
     useEffect(() => {
+        if (!user?.hasAvatar) {
+            setAvatarUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return null;
+            });
+            return;
+        }
         if (!avatar) return;
 
         const url = URL.createObjectURL(avatar);
         setAvatarUrl(url);
 
         return () => URL.revokeObjectURL(url);
-    }, [avatar]);
+    }, [user?.hasAvatar, avatar]);
 
     if (!user) return null;
 

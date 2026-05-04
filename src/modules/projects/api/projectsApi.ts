@@ -44,12 +44,19 @@ export const projectsApi = api.injectEndpoints({
 
         createProjectTaskStatusColumn: builder.mutation<
             string,
-            { projectId: string; name: string; colorHex?: string | null }
+            {
+                projectId: string;
+                name: string;
+                colorHex?: string | null;
+                semanticKind?: number;
+                isDoneColumn?: boolean;
+                isBlockedColumn?: boolean;
+            }
         >({
-            query: ({ projectId, name, colorHex }) => ({
+            query: ({ projectId, name, colorHex, semanticKind, isDoneColumn, isBlockedColumn }) => ({
                 url: getUrl(`/${projectId}${env.PROJECT_TASK_STATUS_COLUMNS_SUFFIX}`),
                 method: "PUT",
-                data: { name, colorHex },
+                data: { name, colorHex, semanticKind, isDoneColumn, isBlockedColumn },
             }),
             invalidatesTags: (_, __, { projectId }) => [{ type: "TaskStatusColumns", id: projectId }],
         }),

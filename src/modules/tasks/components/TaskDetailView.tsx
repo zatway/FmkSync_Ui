@@ -11,21 +11,20 @@ import {
 import { useGetProjectByIdQuery, useGetProjectTaskStatusColumnsQuery } from "@/modules/projects/api/projectsApi";
 import { AppRoutes } from "@/app/routes/AppRoutes";
 import { Button } from "@/shared/ui_shadcn/button";
-import { ArrowLeft, BookOpen, CheckCircle2, Edit, Pencil, Reply, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/shared/ui_shadcn/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui_shadcn/card";
 import { Textarea } from "@/shared/ui_shadcn/textarea";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ru } from "date-fns/locale";
 import { parseAccessTokenClaims } from "@/shared/lib/auth/tokenClaims";
 import { authLocalService, getApiErrorMessage } from "@/shared/lib";
-import { toAbsoluteApiUrl } from "@/shared/lib/absoluteApiUrl";
 import { FilePickerButton } from "@/shared/ui/FilePickerButton";
 import TaskHistory from "@/modules/tasks/components/TaskHistory";
-import { UserAvatar } from "@/shared/ui/UserAvatar";
-import { cn } from "@/shared/lib/ui_shadcn/utils";
+import { TaskCommentItem } from "@/modules/tasks/components/TaskCommentItem";
+import type { TaskStatusColumnDto } from "@/types/dto/tasks/TaskStatusColumnDto";
 import { resolveDoneColumnId } from "@/modules/tasks/lib/resolveDoneColumnId";
 
 export function TaskDetailView() {
@@ -33,7 +32,9 @@ export function TaskDetailView() {
     const navigate = useNavigate();
     const { data: task, isLoading } = useGetTaskByIdQuery(taskId!, { skip: !taskId });
     const { data: project } = useGetProjectByIdQuery(projectId!, { skip: !projectId });
-    const { data: statusColumns = [] } = useGetProjectTaskStatusColumnsQuery(projectId!, { skip: !projectId });
+    const emptyStatusColumns = useRef<TaskStatusColumnDto[]>([]).current;
+    const { data: statusColumnsData } = useGetProjectTaskStatusColumnsQuery(projectId!, { skip: !projectId });
+    const statusColumns = statusColumnsData ?? emptyStatusColumns;
     const [remove, { isLoading: deleting }] = useDeleteTaskMutation();
     const [changeStatus, { isLoading: closing }] = useChangeTaskStatusMutation();
     const [addComment, { isLoading: addingComment }] = useAddTaskCommentMutation();
@@ -42,6 +43,7 @@ export function TaskDetailView() {
     const [deleteCommentMut, { isLoading: deletingComment }] = useDeleteTaskCommentMutation();
     const [commentText, setCommentText] = useState("");
     const [replyTo, setReplyTo] = useState<{ userId: string; authorName: string } | null>(null);
+    const [replyParentCommentId, setReplyParentCommentId] = useState<string | null>(null);
     const [mentionIds, setMentionIds] = useState<string[]>([]);
     const [files, setFiles] = useState<File[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -106,6 +108,7 @@ export function TaskDetailView() {
                 content: commentText.trim(),
                 replyToUserId: replyTo?.userId ?? null,
                 mentionsUserIds: mentionIds.length ? mentionIds : null,
+                parentCommentId: replyParentCommentId,
             }).unwrap();
 
             if (files.length) {
@@ -113,6 +116,7 @@ export function TaskDetailView() {
             }
             setCommentText("");
             setReplyTo(null);
+            setReplyParentCommentId(null);
             setMentionIds([]);
             setFiles([]);
             toast.success("Комментарий добавлен");
@@ -236,10 +240,24 @@ export function TaskDetailView() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        {replyTo && (
+                        {(replyTo || replyParentCommentId) && (
                             <div className="text-xs text-muted-foreground">
-                                Ответ пользователю: <span className="font-medium">{replyTo.authorName}</span>{" "}
-                                <button type="button" className="underline ml-2" onClick={() => setReplyTo(null)}>
+                                {replyTo && (
+                                    <>
+                                        Ответ пользователю: <span className="font-medium">{replyTo.authorName}</span>
+                                    </>
+                                )}
+                                {replyParentCommentId && (
+                                    <span className={replyTo ? " ml-2" : ""}> (ветка комментария)</span>
+                                )}
+                                <button
+                                    type="button"
+                                    className="underline ml-2"
+                                    onClick={() => {
+                                        setReplyTo(null);
+                                        setReplyParentCommentId(null);
+                                    }}
+                                >
                                     отменить
                                 </button>
                             </div>
@@ -288,99 +306,24 @@ export function TaskDetailView() {
                     </div>
                     <div className="space-y-8">
                         {task.comments.map((c) => (
-                            <div key={c.id} className={cn("flex gap-4")}>
-                                <UserAvatar userId={c.userId} name={c.authorName} className="mt-1 shrink-0" />
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-3 mb-1">
-                                        <span className="font-medium">{c.authorName}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {format(parseISO(c.createdAt), "d MMM yyyy, HH:mm", { locale: ru })}
-                                            {c.updatedAt && c.updatedAt !== c.createdAt && (
-                                                <span className="ml-1 italic">(изменено)</span>
-                                            )}
-                                        </span>
-                                    </div>
-                                    {editingId === c.id ? (
-                                        <Textarea
-                                            value={editContent}
-                                            onChange={(e) => setEditContent(e.target.value)}
-                                            rows={3}
-                                            className="mt-2"
-                                        />
-                                    ) : (
-                                        <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                                            {c.content}
-                                        </p>
-                                    )}
-                                    {c.attachments?.length ? (
-                                        <div className="mt-3 flex flex-col gap-1">
-                                            {c.attachments.map((a) => (
-                                                <a
-                                                    key={a.id}
-                                                    className="text-xs text-primary underline underline-offset-2 w-fit break-all"
-                                                    href={toAbsoluteApiUrl(a.downloadUrl)}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                >
-                                                    {a.fileName} ({Math.round(a.sizeBytes / 1024)} KB)
-                                                </a>
-                                            ))}
-                                        </div>
-                                    ) : null}
-                                    <div className="flex items-center gap-4 mt-3">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 px-2 text-xs"
-                                            type="button"
-                                            onClick={() =>
-                                                setReplyTo({ userId: c.userId, authorName: c.authorName })
-                                            }
-                                        >
-                                            <Reply className="mr-1 h-3.5 w-3.5" />
-                                            Ответить
-                                        </Button>
-                                        {currentUserId === c.userId && (
-                                            <>
-                                                {editingId === c.id ? (
-                                                    <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        variant="secondary"
-                                                        className="h-8 px-2 text-xs"
-                                                        disabled={updatingComment}
-                                                        onClick={() => void saveEdit()}
-                                                    >
-                                                        Сохранить
-                                                    </Button>
-                                                ) : (
-                                                    <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        className="h-8 px-2 text-xs"
-                                                        onClick={() => startEdit(c.id, c.content)}
-                                                    >
-                                                        <Edit className="mr-1 h-3.5 w-3.5" />
-                                                        Правка
-                                                    </Button>
-                                                )}
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="h-8 px-2 text-xs text-destructive"
-                                                    disabled={deletingComment}
-                                                    onClick={() => void removeComment(c.id)}
-                                                >
-                                                    <Trash2 className="mr-1 h-3.5 w-3.5" />
-                                                    Удалить
-                                                </Button>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                            <TaskCommentItem
+                                key={c.id}
+                                comment={c}
+                                level={0}
+                                currentUserId={currentUserId}
+                                editingId={editingId}
+                                editContent={editContent}
+                                deletingComment={deletingComment}
+                                updatingComment={updatingComment}
+                                onReply={(comment) => {
+                                    setReplyParentCommentId(comment.id);
+                                    setReplyTo({ userId: comment.userId, authorName: comment.authorName });
+                                }}
+                                onStartEdit={startEdit}
+                                onSaveEdit={() => void saveEdit()}
+                                onEditContentChange={setEditContent}
+                                onRemove={(id) => void removeComment(id)}
+                            />
                         ))}
                     </div>
                 </CardContent>

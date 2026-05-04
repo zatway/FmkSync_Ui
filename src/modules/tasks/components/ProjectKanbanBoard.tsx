@@ -37,7 +37,7 @@ import { DND_TASK_ID_PREFIX, TaskCard, TaskCardDragOverlay } from "./TaskCard";
 import { Button } from "@/shared/ui_shadcn/button";
 import { Input } from "@/shared/ui_shadcn/input";
 import { Plus, GripVertical, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppRoutes } from "@/app/routes/AppRoutes";
 import type { TaskStatusColumnDto } from "@/types/dto/tasks/TaskStatusColumnDto";
@@ -60,9 +60,39 @@ import {
     DialogTitle,
 } from "@/shared/ui_shadcn/dialog";
 import { Label } from "@/shared/ui_shadcn/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/shared/ui_shadcn/select";
 
 /** Префикс id колонки для @dnd-kit (не пересекается с task id). */
 const DND_COL_PREFIX = "col:";
+
+type NewColumnKind = "0" | "1" | "2" | "3" | "4" | "255";
+
+function columnCreatePayload(kind: NewColumnKind): {
+    semanticKind: number;
+    isDoneColumn: boolean;
+    isBlockedColumn: boolean;
+} {
+    switch (kind) {
+        case "0":
+            return { semanticKind: 0, isDoneColumn: false, isBlockedColumn: false };
+        case "1":
+            return { semanticKind: 1, isDoneColumn: false, isBlockedColumn: false };
+        case "2":
+            return { semanticKind: 2, isDoneColumn: false, isBlockedColumn: false };
+        case "3":
+            return { semanticKind: 3, isDoneColumn: true, isBlockedColumn: false };
+        case "4":
+            return { semanticKind: 4, isDoneColumn: false, isBlockedColumn: true };
+        default:
+            return { semanticKind: 255, isDoneColumn: false, isBlockedColumn: false };
+    }
+}
 
 function parseDragId(id: string): { kind: "task"; uuid: string } | { kind: "column"; uuid: string } | null {
     if (id.startsWith(DND_TASK_ID_PREFIX)) {
@@ -79,11 +109,17 @@ interface ProjectKanbanBoardProps {
 }
 
 export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProps) {
-    const { data: serverTasks = [], isFetching } = useGetTasksByProjectQuery(projectId);
-    const { data: statusColumns = [], isFetching: colsLoading } = useGetProjectTaskStatusColumnsQuery(
+    /** Стабильные пустые массивы: `data ?? []` в дефолте аргумента даёт новый [] на каждом рендере → useEffect + setColumns = infinite loop. */
+    const emptyTasksRef = useRef<TaskShortDto[]>([]);
+    const emptyColumnsRef = useRef<TaskStatusColumnDto[]>([]);
+
+    const { data: serverTasksData, isFetching } = useGetTasksByProjectQuery(projectId);
+    const { data: statusColumnsData, isFetching: colsLoading } = useGetProjectTaskStatusColumnsQuery(
         projectId,
         { skip: !projectId },
     );
+    const serverTasks = serverTasksData ?? emptyTasksRef.current;
+    const statusColumns = statusColumnsData ?? emptyColumnsRef.current;
     const [changeStatus] = useChangeTaskStatusMutation();
     const [createColumn, { isLoading: creatingCol }] = useCreateProjectTaskStatusColumnMutation();
     const [reorderColumns] = useReorderProjectTaskStatusColumnsMutation();
@@ -98,10 +134,37 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
 
     const doneColumnId = useMemo(() => resolveDoneColumnId(sortedColumns), [sortedColumns]);
 
+    const hasDoneColumn = useMemo(
+        () => sortedColumns.some((c) => c.isDoneColumn || c.semanticKind === 3),
+        [sortedColumns],
+    );
+    const hasBlockedColumn = useMemo(
+        () => sortedColumns.some((c) => c.isBlockedColumn || c.semanticKind === 4),
+        [sortedColumns],
+    );
+    const hasInitialColumn = useMemo(
+        () =>
+            sortedColumns.some(
+                (c) => c.semanticKind === 0 && !c.isDoneColumn && !c.isBlockedColumn,
+            ),
+        [sortedColumns],
+    );
+
     const [columns, setColumns] = useState<Record<string, TaskShortDto[]>>({});
     const [activeTask, setActiveTask] = useState<TaskShortDto | null>(null);
     const [activeColumn, setActiveColumn] = useState<TaskStatusColumnDto | null>(null);
     const [newColName, setNewColName] = useState("");
+    const [newColumnKind, setNewColumnKind] = useState<NewColumnKind>("255");
+
+    /** Radix Select: нельзя держать controlled value на disabled item — иначе возможен infinite update loop. */
+    useEffect(() => {
+        setNewColumnKind((prev) => {
+            if (prev === "0" && hasInitialColumn) return "255";
+            if (prev === "3" && hasDoneColumn) return "255";
+            if (prev === "4" && hasBlockedColumn) return "255";
+            return prev;
+        });
+    }, [hasInitialColumn, hasDoneColumn, hasBlockedColumn]);
 
     const [editOpen, setEditOpen] = useState(false);
     const [editName, setEditName] = useState("");
@@ -295,8 +358,10 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
         const name = newColName.trim();
         if (!name) return;
         try {
-            await createColumn({ projectId, name, colorHex: null }).unwrap();
+            const payload = columnCreatePayload(newColumnKind);
+            await createColumn({ projectId, name, colorHex: null, ...payload }).unwrap();
             setNewColName("");
+            setNewColumnKind("255");
             toast.success("Колонка добавлена");
         } catch (e) {
             toast.error(getApiErrorMessage(e));
@@ -315,6 +380,25 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
                         onChange={(e) => setNewColName(e.target.value)}
                         className="max-w-full sm:max-w-xs"
                     />
+                    <Select value={newColumnKind} onValueChange={(v) => setNewColumnKind(v as NewColumnKind)}>
+                        <SelectTrigger className="w-full sm:w-[220px]">
+                            <SelectValue placeholder="Тип колонки" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="255">Обычная</SelectItem>
+                            <SelectItem value="0" disabled={hasInitialColumn}>
+                                Начальная (backlog)
+                            </SelectItem>
+                            <SelectItem value="1">В работе</SelectItem>
+                            <SelectItem value="2">На проверке</SelectItem>
+                            <SelectItem value="3" disabled={hasDoneColumn}>
+                                Завершающая (закрывает задачу)
+                            </SelectItem>
+                            <SelectItem value="4" disabled={hasBlockedColumn}>
+                                Заблокировано
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
                     <Button
                         type="button"
                         variant="secondary"
@@ -366,7 +450,7 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
                                 projectId={projectId}
                                 doneColumnId={doneColumnId}
                                 onCloseTask={handleCloseTask}
-                                canDelete={sortedColumns.length > 3}
+                                canDelete={sortedColumns.length > 1}
                                 onEdit={() => openEdit(column)}
                                 onRequestDelete={() => {
                                     setColumnBeingDeleted(column);
@@ -392,7 +476,6 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
                 <DialogContent className="sm:max-w-md" showCloseButton>
                     <DialogHeader>
                         <DialogTitle>Редактировать колонку</DialogTitle>
-                        <DialogDescription>Название и цвет отображения (необязательно).</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-2">
                         <div className="grid gap-2">
@@ -405,9 +488,10 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="col-color">Цвет (#RRGGBB)</Label>
+                            <Label htmlFor="col-color">Цвет</Label>
                             <Input
                                 id="col-color"
+                                type='color'
                                 value={editColor}
                                 onChange={(e) => setEditColor(e.target.value)}
                                 placeholder="#6366f1"
@@ -483,6 +567,7 @@ function SortableKanbanColumn({
 
     const style: CSSProperties = {
         transform: CSS.Transform.toString(transform),
+        borderColor: column.colorHex ?? "transparent",
         transition,
     };
 
@@ -531,7 +616,7 @@ function SortableKanbanColumn({
                         </DropdownMenuItem>
                         <DropdownMenuItem disabled={!canDelete} onClick={onRequestDelete}>
                             <Trash2 className="mr-2 h-4 w-4" />
-                            {!canDelete ? "Нельзя удалить (мин. 3 колонки)" : "Удалить"}
+                            {!canDelete ? "Нельзя удалить (осталась одна колонка)" : "Удалить"}
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

@@ -6,6 +6,7 @@ import { cn } from '@/shared/lib/ui_shadcn/utils'
 
 const AppLayout = () => {
     const [mobileNavOpen, setMobileNavOpen] = useState(false)
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
     return (
         <div className="flex h-[100dvh] overflow-hidden bg-background">
@@ -19,11 +20,16 @@ const AppLayout = () => {
             )}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 w-[min(100vw-3rem,16rem)] border-r bg-card flex flex-col transition-transform duration-200 md:static md:z-auto md:w-64 md:translate-x-0',
+                    'fixed inset-y-0 left-0 z-50 w-[min(100vw-3rem,16rem)] border-r bg-card flex flex-col transition-[width,transform] duration-300 md:static md:z-auto md:translate-x-0',
+                    sidebarCollapsed ? 'md:w-20' : 'md:w-64',
                     mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
                 )}
             >
-                <Sidebar onNavigate={() => setMobileNavOpen(false)} />
+                <Sidebar
+                    collapsed={sidebarCollapsed}
+                    onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+                    onNavigate={() => setMobileNavOpen(false)}
+                />
             </aside>
             <div className="flex flex-col flex-1 min-w-0">
                 <Header onOpenMobileNav={() => setMobileNavOpen(true)} />

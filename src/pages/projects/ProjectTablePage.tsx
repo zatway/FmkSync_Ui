@@ -15,9 +15,9 @@ export default function ProjectTablePage() {
             <div className="mt-8 bg-card border rounded-xl shadow-sm overflow-hidden">
                 <ProjectsTable />
 
-                <div className="border-t px-6 py-4">
-                    <ProjectsTablePagination />
-                </div>
+                {/*<div className="border-t px-6 py-4">*/}
+                {/*    <ProjectsTablePagination />*/}
+                {/*</div>*/}
             </div>
         </div>
     );

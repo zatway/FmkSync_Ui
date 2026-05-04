@@ -5,6 +5,7 @@ export interface TaskAssigneeDto {
     id: string;
     name: string;
     avatarUrl?: string | null;
+    hasAvatar?: boolean;
 }
 
 export interface TaskShortDto {

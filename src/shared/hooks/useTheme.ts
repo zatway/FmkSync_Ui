@@ -1,38 +1,14 @@
-import { useEffect, useState } from "react";
-
-type Theme = "light" | "dark";
+import { useContext } from "react";
+import { SystemContext } from "@/app/providers/SystemProvider";
 
 export const useTheme = () => {
+    const context = useContext(SystemContext);
 
-    const [theme, setTheme] = useState<Theme>(() => {
-        if (typeof window === "undefined") return "light";
+    if (!context) {
+        throw new Error("useTheme must be used within a SystemProvider");
+    }
 
-        const saved = localStorage.getItem("theme") as Theme | null;
+    const { theme, setTheme, toggleTheme } = context;
 
-        if (saved) return saved;
-
-        return window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "light";
-    });
-
-    useEffect(() => {
-
-        const root = document.documentElement;
-
-        if (theme === "dark") {
-            root.classList.add("dark");
-        } else {
-            root.classList.remove("dark");
-        }
-
-        localStorage.setItem("theme", theme);
-
-    }, [theme]);
-
-    const toggleTheme = () => {
-        setTheme(prev => prev === "dark" ? "light" : "dark");
-    };
-
-    return { theme, toggleTheme };
+    return { theme, setTheme, toggleTheme };
 };

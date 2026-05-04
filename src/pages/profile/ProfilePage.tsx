@@ -11,7 +11,7 @@ import { FilePickerButton } from "@/shared/ui/FilePickerButton";
 
 export default function ProfilePage() {
     const { data: user } = useGetMeInfoQuery();
-    const { data: avatarBlob } = useGetMeAvatarQuery();
+    const { data: avatarBlob } = useGetMeAvatarQuery(undefined, { skip: !user?.hasAvatar });
     const [updateProfile, { isLoading }] = useUpdateProfileMutation();
 
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -27,11 +27,18 @@ export default function ProfilePage() {
     }, [user?.fullName]);
 
     useEffect(() => {
+        if (!user?.hasAvatar) {
+            setAvatarUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return null;
+            });
+            return;
+        }
         if (!avatarBlob) return;
         const url = URL.createObjectURL(avatarBlob);
         setAvatarUrl(url);
         return () => URL.revokeObjectURL(url);
-    }, [avatarBlob]);
+    }, [user?.hasAvatar, avatarBlob]);
 
     const onPickAvatar = async (file: File | null) => {
         if (!file) return;

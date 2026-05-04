@@ -389,7 +389,12 @@ const AdminPage = () => {
                             className="border rounded-md p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                         >
                             <div className="flex items-start gap-3 min-w-0">
-                                <UserAvatar userId={u.id} name={u.fullName} className="shrink-0" />
+                                <UserAvatar
+                                    userId={u.id}
+                                    name={u.fullName}
+                                    hasAvatar={u.hasAvatar === true}
+                                    className="shrink-0"
+                                />
                                 <div className="min-w-0">
                                     <div className="font-medium truncate">
                                         {u.fullName}{" "}

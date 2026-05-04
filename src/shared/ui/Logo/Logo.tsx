@@ -1,18 +1,29 @@
-import logo from "@/shared/assets/icons/logo.png";
+import lightLogo from "@/shared/assets/icons/lightLogo.png";
+import darkLogo from "@/shared/assets/icons/darkLogo.png";
 import {FC} from "react";
+import {themeLocalService} from "@/shared/lib/localStorageService/themeLocalStorage";
+import {Theme} from "@/app/providers/SystemProvider";
 
 interface LogoProps {
+    mode?: Theme;
     width?: number;
     height?: number;
 }
 
-export const Logo: FC<LogoProps> = ({width, height}) => {
+export const Logo: FC<LogoProps> = ({width, height, mode = themeLocalService.getTheme()}) => {
     return (
-        <img
-            style={{width: width, height: height}}
-            src={logo}
-            alt="FMK Sync Logo"
-            className="h-10 w-auto"
-        />
+        mode === 'light' ?
+            <img
+                style={{width: width, height: height}}
+                src={lightLogo}
+                alt="FMK Sync Logo"
+                className="h-10 w-auto"
+            /> :
+            <img
+                style={{width: width, height: height}}
+                src={darkLogo}
+                alt="FMK Sync Logo"
+                className="h-10 w-auto"
+            />
     );
 };

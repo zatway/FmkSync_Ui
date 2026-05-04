@@ -12,7 +12,7 @@ import { ProjectCommentDto } from "@/types/dto/projectComments/ProjectCommentDto
 import { cn } from "@/shared/lib/ui_shadcn/utils";
 import { useDeleteProjectCommentMutation } from "@/modules/projects/api/projectsApi";
 import { getApiErrorMessage } from "@/shared/lib";
-import { toAbsoluteApiUrl } from "@/shared/lib/absoluteApiUrl";
+import { CommentAttachmentLink } from "@/shared/ui/CommentAttachmentLink";
 
 interface Props {
     comment: ProjectCommentDto;
@@ -37,7 +37,12 @@ export function ProjectCommentItem({ comment, projectId, level }: Props) {
 
     return (
         <div className={cn("flex gap-4", level > 0 && "ml-10 border-l-2 border-muted pl-6")}>
-            <UserAvatar userId={comment.author.id} name={comment.author.name} className="mt-1" />
+            <UserAvatar
+                userId={comment.author.id}
+                name={comment.author.name}
+                hasAvatar={comment.author.hasAvatar === true}
+                className="mt-1"
+            />
 
             <div className="flex-1">
                 <div className="flex items-center gap-3 mb-1">
@@ -64,15 +69,7 @@ export function ProjectCommentItem({ comment, projectId, level }: Props) {
                 {comment.attachments && comment.attachments.length > 0 && (
                     <div className="mt-3 flex flex-col gap-1">
                         {comment.attachments.map((a) => (
-                            <a
-                                key={a.id}
-                                href={toAbsoluteApiUrl(a.downloadUrl)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs text-primary underline underline-offset-2 w-fit"
-                            >
-                                {a.fileName}
-                            </a>
+                            <CommentAttachmentLink key={a.id} attachment={a} />
                         ))}
                     </div>
                 )}

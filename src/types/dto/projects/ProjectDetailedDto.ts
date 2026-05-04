@@ -20,6 +20,7 @@ export interface ProjectDetailedDto {
         id: string;
         name: string;
         avatarUrl?: string;
+        hasAvatar?: boolean;
         email?: string;
         role: "owner" | "admin" | "member";
     };
@@ -28,6 +29,7 @@ export interface ProjectDetailedDto {
         id: string;
         name: string;
         avatarUrl?: string;
+        hasAvatar?: boolean;
         email?: string;
         role: "admin" | "member" | "viewer" | "guest";
         joinedAt: string | Date;
@@ -53,6 +55,7 @@ export interface ProjectDetailedDto {
     tags?: string[];               // ["frontend", "mobile", "urgent", "clientX"]
     category?: string;             // "internal", "client", "product", "research"
     department?: string;           // "IT", "Marketing", "HR" и т.д.
+    departmentId?: string;
 
     // Метаданные
     isFavorite?: boolean;          // для текущего пользователя

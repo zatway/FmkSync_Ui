@@ -12,7 +12,6 @@ import {
 import { format, parseISO } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ArrowUpDown, Edit, Trash2, FolderKanban } from "lucide-react";
-
 import {
     Table,
     TableBody,
@@ -130,24 +129,36 @@ export function ProjectsTable() {
                 cell: ({ row }) => {
                     const project = row.original;
                     return (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => navigate(`${AppRoutes.PROJECTS}/${project.id}`)}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    navigate(`${AppRoutes.PROJECTS}/${project.id}`);
+                                }}
                             >
                                 <FolderKanban className="h-4 w-4" />
                             </Button>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => {
+                                onClick={(event) => {
+                                    event.stopPropagation();
                                     navigate(`${AppRoutes.PROJECTS}/${project.id}/edit`)
                                 }}
                             >
                                 <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProject(project.id)}>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    deleteProject(project.id);
+                                }}
+                            >
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </div>

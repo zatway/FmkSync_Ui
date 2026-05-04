@@ -21,6 +21,7 @@ export interface AdminUserListItemDto {
     positionId: string
     departmentName: string
     positionName: string
+    hasAvatar: boolean
 }
 
 export interface OrgMemberDto {

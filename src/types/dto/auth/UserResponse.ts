@@ -6,4 +6,5 @@ export interface UserResponse {
     role: UserRole;
     departmentName: string;
     positionName: string;
+    hasAvatar: boolean;
 }
