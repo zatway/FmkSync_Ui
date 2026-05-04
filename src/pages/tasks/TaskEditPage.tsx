@@ -1,6 +1,13 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import { useMemo } from 'react'
 import { useGetProjectByIdQuery, useGetProjectTaskStatusColumnsQuery } from '@/modules/projects/api/projectsApi'
-import { useGetTaskByIdQuery, useUpdateTaskMutation, useAssignUserMutation } from '@/modules/tasks/api/tasksApi'
+import {
+    useGetTaskByIdQuery,
+    useGetTasksByProjectQuery,
+    useUpdateTaskMutation,
+    useAssignUserMutation,
+} from '@/modules/tasks/api/tasksApi'
+import { mergeTaskFormMemberOptions } from '@/modules/tasks/lib/taskFormMembers'
 import { TaskForm, type TaskFormValues } from '@/modules/tasks'
 import { AppRoutes } from '@/app/routes/AppRoutes'
 import { Button } from '@/shared/ui_shadcn/button'
@@ -13,11 +20,15 @@ export default function TaskEditPage() {
     const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>()
     const navigate = useNavigate()
     const { data: project } = useGetProjectByIdQuery(projectId!, { skip: !projectId })
+    const { data: projectTasks = [] } = useGetTasksByProjectQuery(projectId!, { skip: !projectId })
     const { data: statusColumns = [] } = useGetProjectTaskStatusColumnsQuery(projectId!, { skip: !projectId })
     const { data: task, isLoading: taskLoading } = useGetTaskByIdQuery(taskId!, { skip: !taskId })
     const [updateTask, { isLoading }] = useUpdateTaskMutation()
     const [assignUser] = useAssignUserMutation()
-    const members = project?.members?.map((m) => ({ id: m.id, name: m.name })) ?? []
+    const members = useMemo(
+        () => mergeTaskFormMemberOptions(project, projectTasks, task ?? undefined),
+        [project, projectTasks, task],
+    )
 
     const onSubmit = async (values: TaskFormValues) => {
         if (!projectId || !taskId) return

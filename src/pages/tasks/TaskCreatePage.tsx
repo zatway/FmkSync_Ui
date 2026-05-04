@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useMemo } from 'react'
 import { useGetProjectByIdQuery, useGetProjectTaskStatusColumnsQuery } from '@/modules/projects/api/projectsApi'
-import { useCreateTaskMutation } from '@/modules/tasks/api/tasksApi'
+import { useCreateTaskMutation, useGetTasksByProjectQuery } from '@/modules/tasks/api/tasksApi'
+import { mergeTaskFormMemberOptions } from '@/modules/tasks/lib/taskFormMembers'
 import { TaskForm, type TaskFormValues } from '@/modules/tasks'
 import { AppRoutes } from '@/app/routes/AppRoutes'
 import { Button } from '@/shared/ui_shadcn/button'
@@ -14,25 +15,14 @@ export default function TaskCreatePage() {
     const { projectId } = useParams<{ projectId: string }>()
     const navigate = useNavigate()
     const { data: project } = useGetProjectByIdQuery(projectId!, { skip: !projectId })
+    const { data: projectTasks = [] } = useGetTasksByProjectQuery(projectId!, { skip: !projectId })
     const { data: statusColumns = [] } = useGetProjectTaskStatusColumnsQuery(projectId!, { skip: !projectId })
     const [createTask, { isLoading }] = useCreateTaskMutation()
 
-    const members = useMemo(() => {
-        if (!project) return []
-        const out: { id: string; name: string }[] = []
-        const seen = new Set<string>()
-        if (project.owner) {
-            out.push({ id: project.owner.id, name: project.owner.name })
-            seen.add(project.owner.id)
-        }
-        for (const m of project.members ?? []) {
-            if (!seen.has(m.id)) {
-                out.push({ id: m.id, name: m.name })
-                seen.add(m.id)
-            }
-        }
-        return out
-    }, [project])
+    const members = useMemo(
+        () => mergeTaskFormMemberOptions(project, projectTasks),
+        [project, projectTasks],
+    )
 
     const onSubmit = async (values: TaskFormValues) => {
         if (!projectId) return

@@ -1,4 +1,5 @@
 import { api, authLocalService, hasValue } from '../../../shared/lib'
+import { connectToSignalR } from '@/modules/signalr/signalRSlice'
 import { TokenResponse } from '@/types/dto/auth/TokenResponse'
 import { LoginRequest } from '@/types/dto/auth/LoginRequest'
 import { RegisterRequest } from '@/types/dto/auth/RegisterRequest'
@@ -25,7 +26,7 @@ export const authApi = api.injectEndpoints({
                 method: 'POST',
                 data,
             }),
-            async onQueryStarted(_, { queryFulfilled }) {
+            async onQueryStarted(_, { dispatch, queryFulfilled }) {
                 try {
                     const { data } = await queryFulfilled
                     authLocalService.setTokenData(data)
@@ -34,6 +35,7 @@ export const authApi = api.injectEndpoints({
                         if (claims.role) authLocalService.setUserRole(claims.role)
                         if (claims.userId) localStorageCore.setItem('userId', claims.userId)
                     }
+                    void dispatch(connectToSignalR())
                 } catch {}
             },
         }),

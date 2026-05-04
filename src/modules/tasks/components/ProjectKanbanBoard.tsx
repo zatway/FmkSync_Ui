@@ -28,12 +28,16 @@ import {
     useGetTasksByProjectQuery,
 } from "@/modules/tasks/api/tasksApi";
 import {
+    useGetProjectByIdQuery,
     useGetProjectTaskStatusColumnsQuery,
     useCreateProjectTaskStatusColumnMutation,
     useReorderProjectTaskStatusColumnsMutation,
     useUpdateProjectTaskStatusColumnMutation,
     useDeleteProjectTaskStatusColumnMutation,
 } from "@/modules/projects/api/projectsApi";
+import { authLocalService } from "@/shared/lib";
+import { UserRole } from "@/types/dto/enums/UserRole";
+import { canCreateTasks as roleCanCreateTasks, canMutateTask } from "@/modules/tasks/lib/taskAccess";
 import { TaskShortDto } from "@/types/dto/tasks/TaskShortDto";
 import { DND_TASK_ID_PREFIX, TaskCard, TaskCardDragOverlay } from "./TaskCard";
 import { Button } from "@/shared/ui_shadcn/button";
@@ -135,17 +139,22 @@ interface ProjectKanbanBoardProps {
 
 export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProps) {
     /** Стабильные пустые массивы: `data ?? []` в дефолте аргумента даёт новый [] на каждом рендере → useEffect + setColumns = infinite loop. */
-    const emptyTasksRef = useRef<TaskShortDto[]>([]);
     const emptyColumnsRef = useRef<TaskStatusColumnDto[]>([]);
     /** Видимая полоса с горизонтальным скроллом — ограничиваем drag по левому/правому краю доски (не только окна). */
     const boardStripRef = useRef<HTMLDivElement>(null);
 
     const { data: serverTasksData, isFetching } = useGetTasksByProjectQuery(projectId);
+    const { data: project } = useGetProjectByIdQuery(projectId, { skip: !projectId });
     const { data: statusColumnsData, isFetching: colsLoading } = useGetProjectTaskStatusColumnsQuery(
         projectId,
         { skip: !projectId },
     );
-    const serverTasks = serverTasksData ?? emptyTasksRef.current;
+    const role = authLocalService.getUserRole();
+    const myUserId = authLocalService.getUserId();
+    const perm = project?.permissions;
+    const canManageTaskColumns =
+        perm?.canManageTaskColumns ?? (role === UserRole.Admin || role === UserRole.Manager);
+    const canCreateTasksFlag = perm?.canCreateTasks ?? roleCanCreateTasks(role);
     const statusColumns = statusColumnsData ?? emptyColumnsRef.current;
     const [changeStatus] = useChangeTaskStatusMutation();
     const [createColumn, { isLoading: creatingCol }] = useCreateProjectTaskStatusColumnMutation();
@@ -201,11 +210,43 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [columnBeingDeleted, setColumnBeingDeleted] = useState<TaskStatusColumnDto | null>(null);
 
+    const [filterAssigneeId, setFilterAssigneeId] = useState<string>("__all__");
+    const [filterResponsibleId, setFilterResponsibleId] = useState<string>("__all__");
+
+    const assigneeFilterOptions = useMemo(() => {
+        const m = new Map<string, string>();
+        for (const t of serverTasksData ?? []) {
+            if (t.assignee?.id) m.set(t.assignee.id, t.assignee.name);
+        }
+        return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], "ru"));
+    }, [serverTasksData]);
+
+    const responsibleFilterOptions = useMemo(() => {
+        const m = new Map<string, string>();
+        for (const t of serverTasksData ?? []) {
+            if (t.responsible?.id) m.set(t.responsible.id, t.responsible.name);
+        }
+        return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], "ru"));
+    }, [serverTasksData]);
+
+    const filteredServerTasks = useMemo(() => {
+        const list = serverTasksData ?? [];
+        return list.filter((t) => {
+            if (filterAssigneeId === "__none__") {
+                if (t.assignee != null) return false;
+            } else if (filterAssigneeId !== "__all__" && t.assignee?.id !== filterAssigneeId) return false;
+            if (filterResponsibleId === "__none__") {
+                if (t.responsible != null) return false;
+            } else if (filterResponsibleId !== "__all__" && t.responsible?.id !== filterResponsibleId) return false;
+            return true;
+        });
+    }, [serverTasksData, filterAssigneeId, filterResponsibleId]);
+
     const tasksById = useMemo(() => {
         const m = new Map<string, TaskShortDto>();
-        serverTasks.forEach((t) => m.set(t.id, t));
+        filteredServerTasks.forEach((t) => m.set(t.id, t));
         return m;
-    }, [serverTasks]);
+    }, [filteredServerTasks]);
 
     useEffect(() => {
         const initial: Record<string, TaskShortDto[]> = {};
@@ -213,7 +254,7 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
             initial[c.id] = [];
         });
 
-        serverTasks.forEach((task) => {
+        filteredServerTasks.forEach((task) => {
             const colId = task.status?.id;
             if (colId && initial[colId]) {
                 initial[colId].push(task);
@@ -227,7 +268,7 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
         });
 
         setColumns(initial);
-    }, [serverTasks, sortedColumns]);
+    }, [filteredServerTasks, sortedColumns]);
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -303,6 +344,10 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
         if (!activeParsed || !overParsed) return;
 
         if (activeParsed.kind === "column" && overParsed.kind === "column") {
+            if (!canManageTaskColumns) {
+                toast.error("Менять порядок колонок могут только администратор или менеджер");
+                return;
+            }
             if (activeParsed.uuid === overParsed.uuid) return;
             const oldIndex = sortedColumns.findIndex((c) => c.id === activeParsed.uuid);
             const newIndex = sortedColumns.findIndex((c) => c.id === overParsed.uuid);
@@ -325,6 +370,10 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
         const activeTaskId = activeParsed.uuid;
         const activeTaskRow = tasksById.get(activeTaskId);
         if (!activeTaskRow) return;
+        if (!canMutateTask(role, myUserId, activeTaskRow)) {
+            toast.error("Нет прав перемещать или менять эту задачу");
+            return;
+        }
 
         let newStatusColumnId = activeTaskRow.status.id;
         let newOrder = activeTaskRow.sortOrder;
@@ -366,6 +415,10 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
         }
         const taskRow = tasksById.get(taskId);
         if (!taskRow || taskRow.status.isDoneColumn) return;
+        if (!canMutateTask(role, myUserId, taskRow)) {
+            toast.error("Нет прав закрыть эту задачу");
+            return;
+        }
         const others = (columns[doneColumnId] ?? []).filter((t) => t.id !== taskId);
         const newOrder = others.length;
         try {
@@ -382,6 +435,10 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
     };
 
     const handleAddColumn = async () => {
+        if (!canManageTaskColumns) {
+            toast.error("Добавлять колонки могут только администратор или менеджер");
+            return;
+        }
         const name = newColName.trim();
         if (!name) return;
         try {
@@ -425,62 +482,113 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
 
     return (
         <div className="min-h-0 space-y-4">
-            <div className="flex flex-col items-stretch justify-end gap-2 sm:flex-row sm:items-center">
-                <div className="mr-auto flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                    <Input
-                        placeholder="Новая колонка"
-                        value={newColName}
-                        onChange={(e) => setNewColName(e.target.value)}
-                        className="max-w-full sm:max-w-xs"
-                    />
-                    <Select value={newColumnKind} onValueChange={(v) => setNewColumnKind(v as NewColumnKind)}>
-                        <SelectTrigger className="w-full sm:w-[220px]">
-                            <SelectValue placeholder="Тип колонки" />
+            <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:flex-wrap sm:items-end">
+                <div className="grid gap-1 sm:min-w-[180px]">
+                    <Label className="text-xs text-muted-foreground">Исполнитель</Label>
+                    <Select value={filterAssigneeId} onValueChange={setFilterAssigneeId}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Все" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="255">Обычная</SelectItem>
-                            <SelectItem value="0" disabled={hasInitialColumn}>
-                                Начальная (backlog)
-                            </SelectItem>
-                            <SelectItem value="1">В работе</SelectItem>
-                            <SelectItem value="2">На проверке</SelectItem>
-                            <SelectItem value="3" disabled={hasDoneColumn}>
-                                Завершающая (закрывает задачу)
-                            </SelectItem>
-                            <SelectItem value="4" disabled={hasBlockedColumn}>
-                                Заблокировано
-                            </SelectItem>
+                            <SelectItem value="__all__">Все</SelectItem>
+                            <SelectItem value="__none__">Не назначен</SelectItem>
+                            {assigneeFilterOptions.map(([id, name]) => (
+                                <SelectItem key={id} value={id}>
+                                    {name}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
+                </div>
+                <div className="grid gap-1 sm:min-w-[180px]">
+                    <Label className="text-xs text-muted-foreground">Ответственный</Label>
+                    <Select value={filterResponsibleId} onValueChange={setFilterResponsibleId}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Все" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="__all__">Все</SelectItem>
+                            <SelectItem value="__none__">Не назначен</SelectItem>
+                            {responsibleFilterOptions.map(([id, name]) => (
+                                <SelectItem key={id} value={id}>
+                                    {name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            </div>
+
+            <div className="flex flex-col items-stretch justify-end gap-2 sm:flex-row sm:items-center">
+                {canManageTaskColumns ? (
+                    <div className="mr-auto flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                        <Input
+                            placeholder="Новая колонка"
+                            value={newColName}
+                            onChange={(e) => setNewColName(e.target.value)}
+                            className="max-w-full sm:max-w-xs"
+                        />
+                        <Select value={newColumnKind} onValueChange={(v) => setNewColumnKind(v as NewColumnKind)}>
+                            <SelectTrigger className="w-full sm:w-[220px]">
+                                <SelectValue placeholder="Тип колонки" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="255">Обычная</SelectItem>
+                                <SelectItem value="0" disabled={hasInitialColumn}>
+                                    Начальная (backlog)
+                                </SelectItem>
+                                <SelectItem value="1">В работе</SelectItem>
+                                <SelectItem value="2">На проверке</SelectItem>
+                                <SelectItem value="3" disabled={hasDoneColumn}>
+                                    Завершающая (закрывает задачу)
+                                </SelectItem>
+                                <SelectItem value="4" disabled={hasBlockedColumn}>
+                                    Заблокировано
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={handleAddColumn}
+                            disabled={creatingCol || !newColName.trim() || sortedColumns.length >= 10}
+                            title={sortedColumns.length >= 10 ? "Не более 10 колонок" : undefined}
+                        >
+                            Добавить колонку
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="mr-auto text-xs text-muted-foreground sm:text-sm">
+                        Управление колонками — только у администратора или менеджера.
+                    </div>
+                )}
+                {canCreateTasksFlag ? (
                     <Button
                         type="button"
-                        variant="secondary"
-                        onClick={handleAddColumn}
-                        disabled={creatingCol || !newColName.trim() || sortedColumns.length >= 10}
-                        title={sortedColumns.length >= 10 ? "Не более 10 колонок" : undefined}
+                        onClick={() => navigate(`${AppRoutes.TASKS}/${projectId}/create`)}
+                        className="shrink-0"
+                        aria-label="Новая задача"
                     >
-                        Добавить колонку
+                        <Plus className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Новая задача</span>
                     </Button>
-                </div>
-                <Button
-                    type="button"
-                    onClick={() => navigate(`${AppRoutes.TASKS}/${projectId}/create`)}
-                    className="shrink-0"
-                    aria-label="Новая задача"
-                >
-                    <Plus className="h-4 w-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Новая задача</span>
-                </Button>
+                ) : null}
             </div>
 
             <p className="text-xs text-muted-foreground">
-                Перетаскивайте колонки за иконку ⋮⋮, карточки задач — за саму карточку.
+                {canManageTaskColumns
+                    ? "Перетаскивайте колонки за иконку ⋮⋮, карточки задач — за саму карточку (если у вас есть права на задачу)."
+                    : "Перетаскивайте только те задачи, которые вам разрешено менять."}
             </p>
 
             {(isFetching || colsLoading) && <p className="text-sm text-muted-foreground">Загрузка…</p>}
 
             {!sortedColumns.length && !colsLoading && (
-                <p className="text-sm text-muted-foreground">Нет колонок статусов для проекта. Добавьте колонку выше.</p>
+                <p className="text-sm text-muted-foreground">
+                    {canManageTaskColumns
+                        ? "Нет колонок статусов для проекта. Добавьте колонку выше."
+                        : "Нет колонок статусов. Обратитесь к администратору или менеджеру."}
+                </p>
             )}
 
             <DndContext
@@ -514,6 +622,9 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
                                     setColumnBeingDeleted(column);
                                     setDeleteOpen(true);
                                 }}
+                                canManageTaskColumns={canManageTaskColumns}
+                                role={role}
+                                myUserId={myUserId}
                             />
                         ))}
                         </div>
@@ -610,6 +721,9 @@ function SortableKanbanColumn({
     canDelete,
     onEdit,
     onRequestDelete,
+    canManageTaskColumns,
+    role,
+    myUserId,
 }: {
     column: TaskStatusColumnDto;
     tasks: TaskShortDto[];
@@ -619,9 +733,13 @@ function SortableKanbanColumn({
     canDelete: boolean;
     onEdit: () => void;
     onRequestDelete: () => void;
+    canManageTaskColumns: boolean;
+    role: UserRole | null;
+    myUserId: string | null;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: `${DND_COL_PREFIX}${column.id}`,
+        disabled: !canManageTaskColumns,
     });
 
     const style: CSSProperties = {
@@ -642,43 +760,49 @@ function SortableKanbanColumn({
             )}
         >
             <div className="mb-3 flex items-center gap-2 sm:mb-4">
-                <button
-                    type="button"
-                    className={cn(
-                        "text-muted-foreground hover:text-foreground touch-none rounded-md p-1",
-                        "cursor-grab active:cursor-grabbing",
-                    )}
-                    aria-label="Переместить колонку"
-                    title="Переместить колонку"
-                    {...attributes}
-                    {...listeners}
-                >
-                    <GripVertical className="h-5 w-5" />
-                </button>
+                {canManageTaskColumns ? (
+                    <button
+                        type="button"
+                        className={cn(
+                            "text-muted-foreground hover:text-foreground touch-none rounded-md p-1",
+                            "cursor-grab active:cursor-grabbing",
+                        )}
+                        aria-label="Переместить колонку"
+                        title="Переместить колонку"
+                        {...attributes}
+                        {...listeners}
+                    >
+                        <GripVertical className="h-5 w-5" />
+                    </button>
+                ) : (
+                    <span className="w-7 shrink-0" aria-hidden />
+                )}
                 <h2 className="flex min-w-0 flex-1 items-center gap-2 text-base font-semibold sm:text-lg">
                     <span className="truncate">{column.name}</span>
                     <span className="bg-background text-muted-foreground shrink-0 rounded-full px-2 py-1 text-xs sm:text-sm">
                         {tasks.length}
                     </span>
                 </h2>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Действия с колонкой</span>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={onEdit}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Изменить
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled={!canDelete} onClick={onRequestDelete}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {!canDelete ? "Нельзя удалить (осталась одна колонка)" : "Удалить"}
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                {canManageTaskColumns ? (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Действия с колонкой</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={onEdit}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Изменить
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled={!canDelete} onClick={onRequestDelete}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                {!canDelete ? "Нельзя удалить (осталась одна колонка)" : "Удалить"}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                ) : null}
             </div>
 
             <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
@@ -690,6 +814,7 @@ function SortableKanbanColumn({
                             projectId={projectId}
                             doneColumnId={doneColumnId}
                             onCloseTask={onCloseTask}
+                            canMutate={canMutateTask(role, myUserId, task)}
                         />
                     ))}
                 </div>

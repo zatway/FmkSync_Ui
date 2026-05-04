@@ -21,6 +21,8 @@ import { format, parseISO } from "date-fns";
 import { ru } from "date-fns/locale";
 import { parseAccessTokenClaims } from "@/shared/lib/auth/tokenClaims";
 import { authLocalService, getApiErrorMessage } from "@/shared/lib";
+import { UserRole } from "@/types/dto/enums/UserRole";
+import { canMutateTask } from "@/modules/tasks/lib/taskAccess";
 import { FilePickerButton } from "@/shared/ui/FilePickerButton";
 import TaskHistory from "@/modules/tasks/components/TaskHistory";
 import { TaskCommentItem } from "@/modules/tasks/components/TaskCommentItem";
@@ -54,6 +56,13 @@ export function TaskDetailView() {
         if (!t) return null;
         return parseAccessTokenClaims(t)?.userId ?? null;
     }, []);
+
+    const role = authLocalService.getUserRole();
+    const canMutate = useMemo(() => {
+        if (!task) return false;
+        return canMutateTask(role, currentUserId, task);
+    }, [role, currentUserId, task]);
+    const canAddComments = role != null && role !== UserRole.ReadOnly;
 
     const doneColumnId = useMemo(() => resolveDoneColumnId(statusColumns), [statusColumns]);
 
@@ -172,15 +181,17 @@ export function TaskDetailView() {
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     К доске
                 </Button>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`${AppRoutes.TASKS}/${projectId}/edit/${taskId}`)}
-                >
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Изменить
-                </Button>
-                {doneColumnId && !task.status.isDoneColumn && (
+                {canMutate ? (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`${AppRoutes.TASKS}/${projectId}/edit/${taskId}`)}
+                    >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Изменить
+                    </Button>
+                ) : null}
+                {canMutate && doneColumnId && !task.status.isDoneColumn ? (
                     <Button
                         variant="secondary"
                         size="sm"
@@ -190,11 +201,13 @@ export function TaskDetailView() {
                         <CheckCircle2 className="mr-2 h-4 w-4" />
                         Закрыть задачу
                     </Button>
-                )}
-                <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Удалить
-                </Button>
+                ) : null}
+                {canMutate ? (
+                    <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Удалить
+                    </Button>
+                ) : null}
             </div>
             <div>
                 <p className="text-sm text-muted-foreground mb-1">{task.key}</p>
@@ -202,6 +215,9 @@ export function TaskDetailView() {
                 <div className="flex flex-wrap gap-2 mt-3">
                     <Badge variant="secondary">{task.status.name}</Badge>
                     <Badge variant="outline">{task.priority}</Badge>
+                    <Badge variant="outline" className="font-normal">
+                        Автор: {task.creator?.name ?? "—"}
+                    </Badge>
                     {task.deadline && (
                         <Badge variant="outline">
                             Срок: {format(parseISO(task.deadline), "d MMMM yyyy", { locale: ru })}
@@ -239,6 +255,7 @@ export function TaskDetailView() {
                     <CardTitle className="text-lg">Комментарии</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    {canAddComments ? (
                     <div className="space-y-2">
                         {(replyTo || replyParentCommentId) && (
                             <div className="text-xs text-muted-foreground">
@@ -304,12 +321,16 @@ export function TaskDetailView() {
                             Отправить
                         </Button>
                     </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">Комментирование недоступно в режиме только просмотра.</p>
+                    )}
                     <div className="space-y-8">
                         {task.comments.map((c) => (
                             <TaskCommentItem
                                 key={c.id}
                                 comment={c}
                                 level={0}
+                                readOnly={!canAddComments}
                                 currentUserId={currentUserId}
                                 editingId={editingId}
                                 editContent={editContent}

@@ -2,9 +2,13 @@ import { Plus } from "lucide-react";
 import { Button } from "@/shared/ui_shadcn/button";
 import { useNavigate } from "react-router-dom";
 import { AppRoutes } from "@/app/routes/AppRoutes";
+import { authLocalService } from "@/shared/lib";
+import { UserRole } from "@/types/dto/enums/UserRole";
 
 export function ProjectsTableHeader() {
     const navigate = useNavigate();
+    const role = authLocalService.getUserRole();
+    const canCreateProject = role === UserRole.Admin || role === UserRole.Manager;
 
     return (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
@@ -15,10 +19,12 @@ export function ProjectsTableHeader() {
                 </p>
             </div>
 
-            <Button onClick={() => navigate(AppRoutes.PROJECT_CREATE)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Новый проект
-            </Button>
+            {canCreateProject ? (
+                <Button onClick={() => navigate(AppRoutes.PROJECT_CREATE)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Новый проект
+                </Button>
+            ) : null}
         </div>
     );
 }

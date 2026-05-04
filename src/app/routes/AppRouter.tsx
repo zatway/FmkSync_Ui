@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { SignalRBridge } from "@/app/providers/SignalRBridge";
 import { AppRoutes } from "./AppRoutes";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { RoleRoute } from "./RoleRoute";
@@ -31,6 +32,7 @@ const routeFallback = (
 
 export const AppRouter = () => (
     <BrowserRouter>
+        <SignalRBridge />
         <Suspense fallback={routeFallback}>
             <Routes>
                 <Route path={AppRoutes.LOGIN} element={<LoginPage />} />

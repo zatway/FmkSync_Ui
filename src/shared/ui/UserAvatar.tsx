@@ -12,7 +12,6 @@ const sizeClass: Record<Size, string> = {
     lg: "h-12 w-12",
 };
 
-/** Подгружает аватар отдельным запросом только если `hasAvatar` (с бэка). Иначе — только буква в круге. */
 export function UserAvatar({
     userId,
     name,
@@ -22,7 +21,6 @@ export function UserAvatar({
 }: {
     userId: string;
     name?: string | null;
-    /** С сервера: есть ли сохранённое фото. Без флага запрос к `/avatar` не делается. */
     hasAvatar: boolean;
     className?: string;
     size?: Size;
@@ -53,7 +51,6 @@ export function UserAvatar({
                 objectUrl = URL.createObjectURL(blob);
                 if (!cancelled) setSrc(objectUrl);
             } catch {
-                /* сеть / 404 — остаётся fallback */
             }
         };
 

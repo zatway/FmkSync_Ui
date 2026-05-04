@@ -1,6 +1,6 @@
-import type { FC } from "react";
+import type {FC} from "react";
 import {useForm} from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import {zodResolver} from "@hookform/resolvers/zod";
 import {z} from "zod";
 import {format} from "date-fns";
 import {ru} from "date-fns/locale";
@@ -26,7 +26,7 @@ import {
 import {Calendar} from "@/shared/ui_shadcn/calendar";
 import {cn} from "@/shared/lib/ui_shadcn/utils";
 import {toast} from "sonner";
-import { getApiErrorMessage } from "@/shared/lib";
+import {getApiErrorMessage} from "@/shared/lib";
 import {AppRoutes} from "@/app/routes/AppRoutes";
 import {useNavigate} from "react-router-dom";
 import {DepartmentSelect} from "@/modules/organization";
@@ -63,28 +63,28 @@ interface ProjectFormProps {
     onSubmit: (values: ProjectFormValues) => Promise<string | undefined>;
     isLoading?: boolean;
     initialValues?: Partial<ProjectFormValues>;
-    /** По умолчанию показывается toast об успешном сохранении (страница редактирования может отключить). */
     showSuccessToast?: boolean;
-    /** По умолчанию после успеха выполняется переход на карточку проекта. */
     navigateToProjectAfterSubmit?: boolean;
     successToastMessage?: string;
+    isEdit?: boolean;
 }
 
 const ProjectForm: FC<ProjectFormProps> = ({
-    submitLabel = "Создать проект",
-    onSubmit,
-    isLoading = false,
-    initialValues = {},
-    showSuccessToast = true,
-    navigateToProjectAfterSubmit = true,
-    successToastMessage,
-}) => {
+                                               submitLabel = "Создать проект",
+                                               onSubmit,
+                                               isLoading = false,
+                                               initialValues = {},
+                                               showSuccessToast = true,
+                                               navigateToProjectAfterSubmit = true,
+                                               successToastMessage,
+                                               isEdit = false,
+                                           }) => {
     const navigate = useNavigate();
 
     const handleSubmit = async (value: ProjectFormValues) => {
         try {
             const createdId = await onSubmit(value)
-            if(!createdId) throw new Error();
+            if (!createdId) throw new Error();
             if (showSuccessToast) {
                 toast.success(successToastMessage ?? "Проект успешно создан");
             }
@@ -140,25 +140,26 @@ const ProjectForm: FC<ProjectFormProps> = ({
                                 </FormItem>
                             )}
                         />
-
-                        <FormField
-                            control={form.control}
-                            name="key"
-                            render={({field}) => (
-                                <FormItem>
-                                    <FormLabel className="text-base">Ключ проекта *</FormLabel>
-                                    <FormControl>
-                                        <Input
-                                            placeholder="PATIENT, CRM26, DIAG2026"
-                                            className="h-11 uppercase text-base"
-                                            {...field}
-                                        />
-                                    </FormControl>
-                                    <FormDescription>Будет использоваться в номерах задач: PATIENT-123</FormDescription>
-                                    <FormMessage/>
-                                </FormItem>
-                            )}
-                        />
+                        {!isEdit && (
+                            <FormField
+                                control={form.control}
+                                name="key"
+                                render={({field}) => (
+                                    <FormItem>
+                                        <FormLabel className="text-base">Ключ проекта *</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="PATIENT, CRM26, DIAG2026"
+                                                className="h-11 uppercase text-base"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>Будет использоваться в номерах задач:
+                                            PATIENT-123</FormDescription>
+                                        <FormMessage/>
+                                    </FormItem>
+                                )}
+                            />)}
                     </div>
 
                     <FormField
@@ -341,7 +342,7 @@ const ProjectForm: FC<ProjectFormProps> = ({
                         <FormField
                             control={form.control}
                             name="departmentId"
-                            render={({ field }) => (
+                            render={({field}) => (
                                 <FormItem className="flex flex-col gap-1.5">
                                     <FormLabel>Выберите подразделение *</FormLabel>
                                     <FormControl>
@@ -350,7 +351,7 @@ const ProjectForm: FC<ProjectFormProps> = ({
                                             onChange={field.onChange}
                                         />
                                     </FormControl>
-                                    <FormMessage />
+                                    <FormMessage/>
                                 </FormItem>
                             )}
                         />

@@ -28,9 +28,10 @@ type ContentProps = {
     overlayStyle?: boolean;
     doneColumnId?: string | null;
     onCloseTask?: (taskId: string) => void | Promise<void>;
+    canMutate?: boolean;
 };
 
-function TaskCardContent({task, projectId, overlayStyle, doneColumnId, onCloseTask}: ContentProps) {
+function TaskCardContent({task, projectId, overlayStyle, doneColumnId, onCloseTask, canMutate = true}: ContentProps) {
     const navigate = useNavigate();
     const due = task.deadline;
     const isOverdue = due && isPast(parseISO(due));
@@ -76,7 +77,7 @@ function TaskCardContent({task, projectId, overlayStyle, doneColumnId, onCloseTa
                         </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                        {doneColumnId && onCloseTask && !task.status.isDoneColumn && (
+                        {canMutate && doneColumnId && onCloseTask && !task.status.isDoneColumn && (
                             <Button
                                 type="button"
                                 variant="ghost"
@@ -122,15 +123,18 @@ interface SortableProps {
     projectId: string;
     doneColumnId?: string | null;
     onCloseTask?: (taskId: string) => void | Promise<void>;
+    /** false — только просмотр, без drag и «Закрыть» */
+    canMutate?: boolean;
 }
 
 /**
  * Сортатируемая карточка: ref + listeners на нативном div (shadcn Card не forwardRef — ref на Card не работал).
  * @see https://docs.dndkit.com/presets/sortable#usesortable
  */
-export function TaskCard({task, projectId, doneColumnId, onCloseTask}: SortableProps) {
+export function TaskCard({task, projectId, doneColumnId, onCloseTask, canMutate = true}: SortableProps) {
     const {attributes, listeners, setNodeRef, transform, transition, isDragging} = useSortable({
         id: `${DND_TASK_ID_PREFIX}${task.id}`,
+        disabled: !canMutate,
     });
 
     const style: CSSProperties = {
@@ -143,18 +147,20 @@ export function TaskCard({task, projectId, doneColumnId, onCloseTask}: SortableP
             ref={setNodeRef}
             style={style}
             className={cn(
-                "outline-none rounded-xl",
-                "cursor-grab active:cursor-grabbing touch-none",
-                isDragging && "opacity-50"
+                "outline-none rounded-xl touch-none",
+                canMutate && "cursor-grab active:cursor-grabbing",
+                !canMutate && "cursor-default",
+                isDragging && "opacity-50",
             )}
             {...attributes}
-            {...listeners}
+            {...(canMutate ? listeners : {})}
         >
             <TaskCardContent
                 task={task}
                 projectId={projectId}
                 doneColumnId={doneColumnId}
                 onCloseTask={onCloseTask}
+                canMutate={canMutate}
             />
         </div>
     );

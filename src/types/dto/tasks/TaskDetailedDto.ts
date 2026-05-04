@@ -1,8 +1,10 @@
-import type { TaskShortDto } from "./TaskShortDto";
+import type { TaskAssigneeDto, TaskShortDto } from "./TaskShortDto";
 import type { TaskCommentDto } from "../taskComments/TaskCommentDto";
 import type { TaskHistoryDto } from "../taskHistory/TaskHistoryDto";
 
 export interface TaskDetailedDto extends TaskShortDto {
+    /** Автор задачи (для отображения и прав сотрудника). */
+    creator?: TaskAssigneeDto | null;
     parentTaskId?: string | null;
     comments: TaskCommentDto[];
     history: TaskHistoryDto[];

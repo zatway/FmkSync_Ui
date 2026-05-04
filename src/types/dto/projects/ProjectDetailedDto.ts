@@ -73,6 +73,9 @@ export interface ProjectDetailedDto {
         canDelete: boolean;
         canManageMembers: boolean;
         canViewHistory: boolean;
+        /** Колонки статусов на доске задач */
+        canManageTaskColumns?: boolean;
+        canCreateTasks?: boolean;
     };
 
     customFields?: Record<string, unknown>; // для кастомных полей компании

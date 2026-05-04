@@ -56,6 +56,7 @@ export type AccessTokenClaims = {
     role: UserRole | null;
     email: string | null;
     fullName: string | null;
+    departmentId: string | null;
 };
 
 export function parseAccessTokenClaims(token: string): AccessTokenClaims | null {
@@ -67,6 +68,7 @@ export function parseAccessTokenClaims(token: string): AccessTokenClaims | null 
         role: getRoleClaim(payload),
         email: getStringClaim(payload, CLAIMS.email),
         fullName: getStringClaim(payload, CLAIMS.fullName),
+        departmentId: getStringClaim(payload, "departmentId"),
     };
 }
 

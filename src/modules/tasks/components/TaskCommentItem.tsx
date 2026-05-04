@@ -13,6 +13,8 @@ import type { TaskCommentDto } from "@/types/dto/taskComments/TaskCommentDto";
 type Props = {
     comment: TaskCommentDto;
     level: number;
+    /** Режим только просмотра: скрыть ответ, правку и удаление. */
+    readOnly?: boolean;
     currentUserId: string | null;
     editingId: string | null;
     editContent: string;
@@ -28,6 +30,7 @@ type Props = {
 export function TaskCommentItem({
     comment,
     level,
+    readOnly = false,
     currentUserId,
     editingId,
     editContent,
@@ -71,6 +74,7 @@ export function TaskCommentItem({
                         ))}
                     </div>
                 ) : null}
+                {!readOnly ? (
                 <div className="flex flex-wrap items-center gap-4 mt-3">
                     <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" type="button" onClick={() => onReply(comment)}>
                         <Reply className="mr-1 h-3.5 w-3.5" />
@@ -115,6 +119,7 @@ export function TaskCommentItem({
                         </>
                     )}
                 </div>
+                ) : null}
 
                 {comment.replies && comment.replies.length > 0 && (
                     <div className="mt-6 space-y-6">
@@ -123,6 +128,7 @@ export function TaskCommentItem({
                                 key={reply.id}
                                 comment={reply}
                                 level={level + 1}
+                                readOnly={readOnly}
                                 currentUserId={currentUserId}
                                 editingId={editingId}
                                 editContent={editContent}

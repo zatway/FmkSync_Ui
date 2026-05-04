@@ -46,6 +46,7 @@ export default function ProjectEditPage() {
 
             <div className="bg-card border rounded-xl shadow-sm overflow-hidden mt-8">
                 <ProjectForm
+                    isEdit
                     submitLabel="Сохранить изменения"
                     isLoading={isUpdating}
                     showSuccessToast={false}
