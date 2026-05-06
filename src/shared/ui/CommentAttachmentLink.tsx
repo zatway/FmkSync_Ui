@@ -5,6 +5,7 @@ import { axiosInstance } from "@/shared/lib/api/baseQuery";
 import { getApiErrorMessage } from "@/shared/lib";
 import type { CommentAttachmentDto } from "@/types/dto/attachments/CommentAttachmentDto";
 import { Button } from "@/shared/ui_shadcn/button";
+import { apiPrefix } from "@/env";
 import {
     Dialog,
     DialogContent,
@@ -22,8 +23,8 @@ function pathForAuthorizedGet(downloadUrl: string): string {
         return downloadUrl;
     }
     const raw = downloadUrl.startsWith("/") ? downloadUrl : `/${downloadUrl}`;
-    if (raw.startsWith("/api/v1/")) {
-        const rest = raw.slice("/api/v1".length);
+    if (raw.startsWith(`${apiPrefix}/`)) {
+        const rest = raw.slice(apiPrefix.length);
         return rest.startsWith("/") ? rest : `/${rest}`;
     }
     return raw;

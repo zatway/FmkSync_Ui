@@ -16,13 +16,13 @@ export const Logo: FC<LogoProps> = ({width, height, mode = themeLocalService.get
             <img
                 style={{width: width, height: height}}
                 src={lightLogo}
-                alt="FMK Sync Logo"
+                alt="komSync Logo"
                 className="h-10 w-auto"
             /> :
             <img
                 style={{width: width, height: height}}
                 src={darkLogo}
-                alt="FMK Sync Logo"
+                alt="komSync Logo"
                 className="h-10 w-auto"
             />
     );
