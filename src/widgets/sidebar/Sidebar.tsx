@@ -40,7 +40,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, onNavigate }: Props) => {
         <aside className='bg-card flex h-full w-full flex-col'>
             <div className={cn('flex items-center border-b p-3', collapsed ? 'justify-center' : 'justify-between gap-2')}>
                 <div onClick={() => navagigation(AppRoutes.PROJECTS)} className={cn('overflow-hidden transition-all duration-300 cursor-pointer', collapsed ? 'w-0 opacity-0 md:w-0' : 'w-[140px] opacity-100')}>
-                    <Logo mode={theme} height={60} width={140}/>
+                    <Logo mode={theme} height={40} width={140}/>
                 </div>
                 <Button
                     size='icon'

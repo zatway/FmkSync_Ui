@@ -36,6 +36,7 @@ export function ProjectTeam({project}: Props) {
                             <div className="flex -space-x-2">
                                 {project.members.slice(0, 5).map((member) => (
                                     <UserAvatar
+                                        key={member.id}
                                         userId={member.id}
                                         name={member.name}
                                         hasAvatar={member.hasAvatar === true}
