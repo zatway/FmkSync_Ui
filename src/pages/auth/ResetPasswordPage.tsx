@@ -67,7 +67,7 @@ const ResetPasswordPage = () => {
                                 <FormItem>
                                     <FormLabel>Токен</FormLabel>
                                     <FormControl>
-                                        <Input autoComplete="off" {...field} />
+                                        <Input autoComplete="off" readOnly {...field} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

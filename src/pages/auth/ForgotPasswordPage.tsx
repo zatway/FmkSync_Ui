@@ -37,10 +37,13 @@ const ForgotPasswordPage = () => {
 
     const submit = async (values: Values) => {
         try {
+            form.clearErrors("email");
             await forgot({ email: values.email.trim() }).unwrap();
             setDone(true);
         } catch (err) {
-            toast.error(getApiErrorMessage(err));
+            const message = getApiErrorMessage(err);
+            form.setError("email", { type: "server", message });
+            toast.error(message);
         }
     };
 
