@@ -11,7 +11,7 @@ FROM nginx:1.27-alpine AS runner
 WORKDIR /usr/share/nginx/html
 
 COPY --from=builder /app/dist ./
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY env.sh /docker-entrypoint.d/40-env-substitution.sh
 RUN chmod +x /docker-entrypoint.d/40-env-substitution.sh
 
