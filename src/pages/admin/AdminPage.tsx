@@ -406,13 +406,13 @@ const AdminPage = () => {
                                 </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                                <Button size="sm" variant="outline" disabled={u.email === "admin@fmksync.local"} onClick={() => openEdit(u)}>
+                                <Button size="sm" variant="outline" disabled={u.email === "admin@komsync.local"} onClick={() => openEdit(u)}>
                                     Редактировать
                                 </Button>
                                 <Button
                                     size="sm"
                                     variant="secondary"
-                                    disabled={userSaving || u.email === "admin@fmksync.local"}
+                                    disabled={userSaving || u.email === "admin@komsync.local"}
                                     onClick={() =>
                                         updateUser({ userId: u.id, data: { isApproved: !u.isApproved } })
                                     }
@@ -423,14 +423,14 @@ const AdminPage = () => {
                                     size="sm"
                                     variant="link"
                                     className="text-destructive"
-                                    disabled={userDeleting || u.email === "admin@fmksync.local"}
+                                    disabled={userDeleting || u.email === "admin@komsync.local"}
                                     onClick={() => deleteUser({ userId: u.id })}
                                 >
                                     Удалить
                                 </Button>
                                 <Select
                                     value={u.role}
-                                    disabled={u.email === "admin@fmksync.local"}
+                                    disabled={u.email === "admin@komsync.local"}
                                     onValueChange={(role) =>
                                         updateRole({ userId: u.id, role: role as UserRole })
                                     }
