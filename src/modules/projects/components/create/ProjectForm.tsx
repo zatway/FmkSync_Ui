@@ -83,7 +83,7 @@ const ProjectForm: FC<ProjectFormProps> = ({
 
     const handleSubmit = async (value: ProjectFormValues) => {
         try {
-            const createdId = await onSubmit(value)
+            const createdId = await onSubmit({...value, key: value.key?.toUpperCase() ?? ""})
             if (!createdId) throw new Error();
             if (showSuccessToast) {
                 toast.success(successToastMessage ?? "Проект успешно создан");

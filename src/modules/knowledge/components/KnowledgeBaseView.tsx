@@ -4,6 +4,7 @@ import {Button} from "@/shared/ui_shadcn/button";
 import {Input} from "@/shared/ui_shadcn/input";
 import {Textarea} from "@/shared/ui_shadcn/textarea";
 import {Label} from "@/shared/ui_shadcn/label";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/shared/ui_shadcn/select";
 import {
     useCreateKnowledgeArticleMutation,
     useDeleteKnowledgeArticleMutation,
@@ -20,6 +21,7 @@ import {KnowledgeTree} from "@/modules/knowledge/components/KnowledgeTree";
 import {buildKnowledgeTree} from "@/modules/knowledge/lib/knowledgeTree";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import {useGetProjectsQuery} from "@/modules/projects/api/projectsApi";
 
 export function KnowledgeBaseView() {
     const {slug} = useParams<{ slug?: string }>();
@@ -29,13 +31,12 @@ export function KnowledgeBaseView() {
     const canEdit = role === UserRole.Admin || role === UserRole.Manager;
 
     const projectIdFilter = searchParams.get("projectId") ?? undefined;
-    const taskIdFilter = searchParams.get("taskId") ?? undefined;
     const listParams = useMemo(
         () =>
-            projectIdFilter || taskIdFilter
-                ? {projectId: projectIdFilter, taskId: taskIdFilter}
+            projectIdFilter
+                ? {projectId: projectIdFilter}
                 : undefined,
-        [projectIdFilter, taskIdFilter],
+        [projectIdFilter],
     );
 
     const searchSuffix = searchParams.toString() ? `?${searchParams.toString()}` : "";
@@ -53,19 +54,20 @@ export function KnowledgeBaseView() {
     const [content, setContent] = useState("");
     const [editMode, setEditMode] = useState(false);
     const [parentIdForCreate, setParentIdForCreate] = useState<string | null>(null);
+    const [projectIdForCreate, setProjectIdForCreate] = useState<string>(projectIdFilter ?? "");
+    const {data: projects = []} = useGetProjectsQuery();
 
     const tree = useMemo(() => buildKnowledgeTree(list ?? []), [list]);
 
     const scopeLabel = useMemo(() => {
         if (!list?.length) return null;
         const first = list[0];
-        if (taskIdFilter && first.taskDisplayKey)
-            return `Задача ${first.taskDisplayKey}${first.projectName ? ` · ${first.projectName}` : ""}`;
         if (projectIdFilter && first.projectName) return `Проект «${first.projectName}»`;
         if (projectIdFilter) return "Фильтр по проекту";
-        if (taskIdFilter) return "Фильтр по задаче";
         return null;
-    }, [list, projectIdFilter, taskIdFilter]);
+    }, [list, projectIdFilter]);
+
+    const isCreateMode = !(slug && article);
 
     useEffect(() => {
         if (article) {
@@ -78,12 +80,15 @@ export function KnowledgeBaseView() {
         setTitle("");
         setContent("");
         setParentIdForCreate(null);
+        setProjectIdForCreate(projectIdFilter ?? "");
         setEditMode(true);
         navigate({pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString()});
     };
 
     const handleAddChild = (parentId: string) => {
+        const parent = list?.find((a) => a.id === parentId);
         setParentIdForCreate(parentId);
+        setProjectIdForCreate(parent?.projectId ?? "");
         setTitle("");
         setContent("");
         setEditMode(true);
@@ -96,8 +101,7 @@ export function KnowledgeBaseView() {
                 title,
                 contentMarkdown: content,
                 parentId: parentIdForCreate ?? undefined,
-                projectId: projectIdFilter ?? undefined,
-                projectTaskId: taskIdFilter ?? undefined,
+                projectId: projectIdForCreate || undefined,
             }).unwrap();
             setEditMode(false);
             setParentIdForCreate(null);
@@ -146,7 +150,7 @@ export function KnowledgeBaseView() {
                 )}
             </div>
 
-            {(projectIdFilter || taskIdFilter) && (
+            {projectIdFilter && (
                 <div
                     className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
                     <FolderOpen className="h-4 w-4 shrink-0 text-primary"/>
@@ -190,6 +194,28 @@ export function KnowledgeBaseView() {
                                 <p className="text-xs text-muted-foreground">
                                     Родительская статья выбрана (дочерняя запись).
                                 </p>
+                            )}
+                            {isCreateMode && (
+                                <div>
+                                    <Label htmlFor="kb-project">Проект (опционально)</Label>
+                                    <Select
+                                        value={projectIdForCreate || "__none__"}
+                                        onValueChange={(value) => setProjectIdForCreate(value === "__none__" ? "" : value)}
+                                        disabled={!!parentIdForCreate}
+                                    >
+                                        <SelectTrigger id="kb-project">
+                                            <SelectValue placeholder="Без проекта" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__none__">Без проекта</SelectItem>
+                                            {projects.map((project) => (
+                                                <SelectItem key={project.id} value={project.id}>
+                                                    {project.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             )}
                             <div>
                                 <Label htmlFor="kb-title">Заголовок</Label>
@@ -266,9 +292,7 @@ export function KnowledgeBaseView() {
                                             </div>
                                         )}
                                     </div>
-                                    {(article.projectId ||
-                                        article.projectTaskId ||
-                                        article.taskDisplayKey) && (
+                                    {article.projectId && (
                                         <div className="not-prose mb-3 flex flex-wrap gap-2 text-xs">
                                             {article.projectId && (
                                                 <Link
@@ -279,15 +303,6 @@ export function KnowledgeBaseView() {
                                                 >
                                                     <FolderOpen className="h-3.5 w-3.5"/>
                                                     {article.projectName ?? article.projectKey ?? "Проект"}
-                                                </Link>
-                                            )}
-                                            {article.projectTaskId && article.projectId && (
-                                                <Link
-                                                    to={`${AppRoutes.TASKS}/${article.projectId}/detail/${article.projectTaskId}`}
-                                                    className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-1 font-medium text-foreground hover:bg-accent"
-                                                >
-                                                    {article.taskDisplayKey ?? "Задача"}
-                                                    {article.taskTitle ? ` — ${article.taskTitle}` : ""}
                                                 </Link>
                                             )}
                                         </div>

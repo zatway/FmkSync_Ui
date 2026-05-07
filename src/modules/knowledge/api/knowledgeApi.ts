@@ -12,8 +12,6 @@ export type KnowledgeArticleListItem = {
     projectId?: string | null;
     projectKey?: string | null;
     projectName?: string | null;
-    projectTaskId?: string | null;
-    taskDisplayKey?: string | null;
 };
 
 export type KnowledgeArticleDetail = {
@@ -30,14 +28,10 @@ export type KnowledgeArticleDetail = {
     projectId?: string | null;
     projectKey?: string | null;
     projectName?: string | null;
-    projectTaskId?: string | null;
-    taskDisplayKey?: string | null;
-    taskTitle?: string | null;
 };
 
 export type KnowledgeListParams = {
     projectId?: string;
-    taskId?: string;
 };
 
 export type CreateKnowledgeBody = {
@@ -47,7 +41,6 @@ export type CreateKnowledgeBody = {
     parentId?: string | null;
     sortOrder?: number | null;
     projectId?: string | null;
-    projectTaskId?: string | null;
 };
 
 export type UpdateKnowledgeBody = {
@@ -57,7 +50,6 @@ export type UpdateKnowledgeBody = {
     parentId?: string | null;
     sortOrder?: number | null;
     projectId?: string | null;
-    projectTaskId?: string | null;
     scopeChanged?: boolean;
     parentChanged?: boolean;
 };
@@ -68,7 +60,6 @@ export const knowledgeApi = api.injectEndpoints({
             query: (arg) => {
                 const params = new URLSearchParams();
                 if (arg?.projectId) params.set("projectId", arg.projectId);
-                if (arg?.taskId) params.set("taskId", arg.taskId);
                 const q = params.toString();
                 return { url: q ? `${base}?${q}` : base, method: "GET" };
             },
