@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui_shadcn/avatar";
-import { authLocalService } from "@/shared/lib";
-import { env } from "@/env";
+import { fetchFileBlob, getUserAvatarFileId } from "@/shared/lib/files";
 import { cn } from "@/shared/lib/ui_shadcn/utils";
 
-type Size = "s" | "sm" | "md" | "lg";
+type Size = "s" | "sm" | "md" | "lg" | "xl";
 
 const sizeClass: Record<Size, string> = {
     s: "h-6 w-6 text-xs",
     sm: "h-8 w-8 text-xs",
     md: "h-10 w-10",
     lg: "h-12 w-12",
+    xl: "h-20 w-20 text-lg",
 };
 
 export function UserAvatar({
@@ -41,14 +41,9 @@ export function UserAvatar({
         let objectUrl: string | null = null;
 
         const load = async () => {
-            const token = authLocalService.getToken();
-            if (!token) return;
             try {
-                const res = await fetch(`${env.VITE_API_BASE_URL}/api/v1/profile/users/${userId}/avatar`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!res.ok || cancelled) return;
-                const blob = await res.blob();
+                const blob = await fetchFileBlob(getUserAvatarFileId(userId));
+                if (cancelled) return;
                 objectUrl = URL.createObjectURL(blob);
                 if (!cancelled) setSrc(objectUrl);
             } catch {

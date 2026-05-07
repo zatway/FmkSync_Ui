@@ -3,7 +3,6 @@ export interface CommentAttachmentDto {
     fileName: string;
     contentType?: string | null;
     sizeBytes: number;
-    downloadUrl: string;
     createdAt: string;
 }
 

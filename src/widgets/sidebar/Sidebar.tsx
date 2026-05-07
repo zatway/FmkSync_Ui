@@ -37,7 +37,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, onNavigate }: Props) => {
         )
 
     return (
-        <aside className='bg-card flex h-full w-full flex-col'>
+        <aside className='bg-card flex h-full min-h-0 w-full flex-col'>
             <div className={cn('flex items-center border-b p-3', collapsed ? 'justify-center' : 'justify-between gap-2')}>
                 <div onClick={() => navagigation(AppRoutes.PROJECTS)} className={cn('overflow-hidden transition-all duration-300 cursor-pointer', collapsed ? 'w-0 opacity-0 md:w-0' : 'w-[140px] opacity-100')}>
                     <Logo mode={theme} height={40} width={140}/>
@@ -52,7 +52,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, onNavigate }: Props) => {
                     {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
                 </Button>
             </div>
-            <nav className='flex-1 overflow-y-auto p-3'>
+            <nav className='flex flex-1 min-h-0 flex-col overflow-y-auto overflow-x-hidden p-3'>
                 <Accordion type='single' collapsible defaultValue={defaultOpen} className='flex flex-col gap-1'>
                     <AccordionProjectsItem collapsed={collapsed} onNavigate={onNavigate} />
                     {items.map((item) => {

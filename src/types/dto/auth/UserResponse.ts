@@ -1,6 +1,7 @@
 import {UserRole} from "@/types/dto/enums/UserRole";
 
 export interface UserResponse {
+    id: string;
     fullName: string;
     email: string;
     role: UserRole;

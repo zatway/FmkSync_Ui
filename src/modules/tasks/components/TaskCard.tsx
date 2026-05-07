@@ -1,7 +1,6 @@
 import type {CSSProperties} from "react";
 import {TaskShortDto} from "@/types/dto/tasks/TaskShortDto";
 import {Card, CardContent} from "@/shared/ui_shadcn/card";
-import {Avatar, AvatarFallback, AvatarImage} from "@/shared/ui_shadcn/avatar";
 import {useSortable} from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
 import {Calendar, AlertCircle, CheckCircle2} from "lucide-react";

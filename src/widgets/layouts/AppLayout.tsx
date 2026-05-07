@@ -20,7 +20,7 @@ const AppLayout = () => {
             )}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 w-[min(100vw-3rem,16rem)] border-r bg-card flex flex-col transition-[width,transform] duration-300 md:static md:z-auto md:translate-x-0',
+                    'fixed inset-y-0 left-0 z-50 w-[min(100vw-3rem,16rem)] border-r bg-card flex min-h-0 flex-col transition-[width,transform] duration-300 md:static md:z-auto md:translate-x-0',
                     sidebarCollapsed ? 'md:w-20' : 'md:w-64',
                     mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
                 )}

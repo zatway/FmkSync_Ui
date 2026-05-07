@@ -12,6 +12,7 @@ import {
     useGetKnowledgeArticleQuery,
     useGetKnowledgeArticlesQuery,
     useUpdateKnowledgeArticleMutation,
+    useUploadKnowledgeAttachmentsMutation,
 } from "@/modules/knowledge/api/knowledgeApi";
 import {AppRoutes} from "@/app/routes/AppRoutes";
 import {authLocalService, getApiErrorMessage} from "@/shared/lib";
@@ -24,6 +25,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {useGetProjectsQuery} from "@/modules/projects/api/projectsApi";
 import {toast} from "sonner";
+import {FilePickerButton} from "@/shared/ui/FilePickerButton";
+import {CommentAttachmentLink} from "@/shared/ui/CommentAttachmentLink";
 
 export function KnowledgeBaseView() {
     const {slug} = useParams<{ slug?: string }>();
@@ -37,7 +40,7 @@ export function KnowledgeBaseView() {
         () =>
             projectIdFilter
                 ? {projectId: projectIdFilter}
-                : undefined,
+                : {},
         [projectIdFilter],
     );
 
@@ -51,6 +54,7 @@ export function KnowledgeBaseView() {
     const [createArticle, {isLoading: creating}] = useCreateKnowledgeArticleMutation();
     const [updateArticle, {isLoading: updating}] = useUpdateKnowledgeArticleMutation();
     const [deleteArticle, {isLoading: deleting}] = useDeleteKnowledgeArticleMutation();
+    const [uploadKnowledgeAttachments, {isLoading: uploadingKb}] = useUploadKnowledgeAttachmentsMutation();
 
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
@@ -59,7 +63,8 @@ export function KnowledgeBaseView() {
     const [projectIdForCreate, setProjectIdForCreate] = useState<string>(projectIdFilter ?? "");
     const [formError, setFormError] = useState<string | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const {data: projects = []} = useGetProjectsQuery();
+    const [kbAttachFiles, setKbAttachFiles] = useState<File[]>([]);
+    const {data: projects = []} = useGetProjectsQuery({});
 
     const tree = useMemo(() => buildKnowledgeTree(list ?? []), [list]);
 
@@ -79,6 +84,10 @@ export function KnowledgeBaseView() {
             setContent(article.contentMarkdown);
         }
     }, [article?.id, article?.updatedAt, article?.title, article?.contentMarkdown]);
+
+    useEffect(() => {
+        setKbAttachFiles([]);
+    }, [article?.id]);
 
     const openCreate = () => {
         setTitle("");
@@ -132,6 +141,17 @@ export function KnowledgeBaseView() {
         } catch (e) {
             const message = getApiErrorMessage(e);
             setFormError(message);
+        }
+    };
+
+    const handleUploadKbAttachments = async () => {
+        if (!article?.id || kbAttachFiles.length === 0) return;
+        try {
+            await uploadKnowledgeAttachments({ articleId: article.id, files: kbAttachFiles }).unwrap();
+            setKbAttachFiles([]);
+            toast.success("Вложения загружены");
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
         }
     };
 
@@ -246,6 +266,38 @@ export function KnowledgeBaseView() {
                                     onChange={(e) => setContent(e.target.value)}
                                 />
                             </div>
+                            {slug && article && canEdit && (
+                                <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+                                    <Label>Вложения к статье</Label>
+                                    {article.attachments && article.attachments.length > 0 && (
+                                        <div className="flex flex-col gap-1">
+                                            {article.attachments.map((a) => (
+                                                <CommentAttachmentLink key={a.id} attachment={a} />
+                                            ))}
+                                        </div>
+                                    )}
+                                    <FilePickerButton
+                                        multiple
+                                        disabled={uploadingKb}
+                                        label="Выбрать файлы"
+                                        onFiles={(picked) => setKbAttachFiles((prev) => [...prev, ...picked])}
+                                    />
+                                    {kbAttachFiles.length > 0 && (
+                                        <p className="text-xs text-muted-foreground break-all">
+                                            К загрузке: {kbAttachFiles.map((f) => f.name).join(", ")}
+                                        </p>
+                                    )}
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        disabled={uploadingKb || kbAttachFiles.length === 0}
+                                        onClick={() => void handleUploadKbAttachments()}
+                                    >
+                                        {uploadingKb ? "Загрузка…" : "Загрузить вложения"}
+                                    </Button>
+                                </div>
+                            )}
                             <div className="flex flex-wrap gap-2">
                                 <Button
                                     type="button"
@@ -327,6 +379,14 @@ export function KnowledgeBaseView() {
                                             article.updatedAt ?? article.createdAt,
                                         ).toLocaleString("ru-RU")}
                                     </p>
+                                    {article.attachments && article.attachments.length > 0 && (
+                                        <div className="not-prose mb-4 flex flex-col gap-1">
+                                            <p className="text-xs font-medium text-muted-foreground">Вложения</p>
+                                            {article.attachments.map((a) => (
+                                                <CommentAttachmentLink key={a.id} attachment={a} />
+                                            ))}
+                                        </div>
+                                    )}
                                     <article className="prose prose-lg prose-headings:text-white prose-p:text-gray-300
                         prose-strong:text-violet-400 prose-code:text-pink-400
                         max-w-none">

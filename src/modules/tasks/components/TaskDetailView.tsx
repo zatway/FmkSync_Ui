@@ -27,6 +27,7 @@ import { canMutateTask } from "@/modules/tasks/lib/taskAccess";
 import { FilePickerButton } from "@/shared/ui/FilePickerButton";
 import TaskHistory from "@/modules/tasks/components/TaskHistory";
 import { TaskCommentItem } from "@/modules/tasks/components/TaskCommentItem";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 import type { TaskStatusColumnDto } from "@/types/dto/tasks/TaskStatusColumnDto";
 import { resolveDoneColumnId } from "@/modules/tasks/lib/resolveDoneColumnId";
 
@@ -217,18 +218,46 @@ export function TaskDetailView() {
             <div>
                 <p className="text-sm text-muted-foreground mb-1">{task.key}</p>
                 <h1 className="text-2xl sm:text-3xl font-bold break-words">{task.title}</h1>
-                <div className="flex flex-wrap gap-2 mt-3">
+                <div className="flex flex-wrap items-center gap-2 mt-3">
                     <Badge variant="secondary">{task.status.name}</Badge>
                     <Badge variant="outline">{task.priority}</Badge>
-                    <Badge variant="outline" className="font-normal">
-                        Автор: {task.creator?.name ?? "—"}
-                    </Badge>
+                    {task.creator ? (
+                        <Badge variant="outline" className="font-normal gap-1.5 py-1 pr-2.5">
+                            <UserAvatar
+                                size="s"
+                                userId={task.creator.id}
+                                name={task.creator.name}
+                                hasAvatar={task.creator.hasAvatar ?? false}
+                            />
+                            <span>Автор: {task.creator.name}</span>
+                        </Badge>
+                    ) : (
+                        <Badge variant="outline" className="font-normal">
+                            Автор: —
+                        </Badge>
+                    )}
                     {task.deadline && (
                         <Badge variant="outline">
                             Срок: {format(parseISO(task.deadline), "d MMMM yyyy", { locale: ru })}
                         </Badge>
                     )}
                 </div>
+                {task.watchers && task.watchers.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className="shrink-0 text-sm text-muted-foreground">Наблюдатели:</span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {task.watchers.map((w) => (
+                                <span
+                                    key={w.id}
+                                    className="flex items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-sm"
+                                >
+                                    <UserAvatar size="s" userId={w.id} name={w.name} hasAvatar={w.hasAvatar ?? false} />
+                                    <span className="max-w-[12rem] truncate">{w.name}</span>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                ) : null}
             </div>
             {task.description && (
                 <Card>

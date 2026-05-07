@@ -6,7 +6,7 @@ export interface ProjectBriefDto {
 
     ownerId: string;               // ID владельца/создателя
     ownerName: string;             // отображаемое имя владельца
-    ownerAvatarUrl?: string;       // аватарка владельца (для UI)
+    ownerHasAvatar?: boolean;
 
     memberCount: number;           // сколько участников в проекте
     taskCount: number;             // всего задач

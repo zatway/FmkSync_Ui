@@ -6,7 +6,7 @@ export interface ProjectHistoryEntryDto {
     changedBy: {
         id: string;
         name: string;
-        avatarUrl?: string;
+        hasAvatar?: boolean;
     };
     changedAt: string;             // ISO строка
 }

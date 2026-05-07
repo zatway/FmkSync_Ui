@@ -142,7 +142,7 @@ export const tasksApi = api.injectEndpoints({
         >({
             query: ({ commentId, files }) => {
                 const fd = new FormData();
-                files.forEach((f) => fd.append("files", f));
+                files.forEach((f) => fd.append("files", f, f.name));
                 return {
                     url: `${taskCommentsBase}/${commentId}/attachments`,
                     method: "POST",

@@ -5,6 +5,7 @@ export interface TaskHistoryDto {
     taskId: string;
     changedById?: string | null;
     changedByName?: string | null;
+    changedByHasAvatar?: boolean;
     propertyName: string;
     oldValue?: string | null;
     newValue?: string | null;

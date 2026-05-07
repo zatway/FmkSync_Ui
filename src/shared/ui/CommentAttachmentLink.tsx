@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { axiosInstance } from "@/shared/lib/api/baseQuery";
 import { getApiErrorMessage } from "@/shared/lib";
+import { fetchFileBlob } from "@/shared/lib/files";
 import type { CommentAttachmentDto } from "@/types/dto/attachments/CommentAttachmentDto";
 import { Button } from "@/shared/ui_shadcn/button";
 import {
@@ -17,21 +17,12 @@ type Props = {
     attachment: CommentAttachmentDto;
 };
 
-function pathForAuthorizedGet(downloadUrl: string): string {
-    if (downloadUrl.startsWith("http://") || downloadUrl.startsWith("https://")) {
-        return downloadUrl;
-    }
-    return downloadUrl;
-}
-
 /** Вложение комментария: открытие в диалоге (с превью для изображений/PDF), скачивание через авторизованный запрос. */
 export function CommentAttachmentLink({ attachment }: Props) {
     const [open, setOpen] = useState(false);
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
-    const requestPath = pathForAuthorizedGet(attachment.downloadUrl);
 
     useEffect(() => {
         if (!open) return;
@@ -47,8 +38,8 @@ export function CommentAttachmentLink({ attachment }: Props) {
                 return null;
             });
             try {
-                const res = await axiosInstance.get(requestPath, { responseType: "blob" });
-                createdUrl = URL.createObjectURL(res.data);
+                const blob = await fetchFileBlob(attachment.id);
+                createdUrl = URL.createObjectURL(blob);
                 if (!cancelled) setBlobUrl(createdUrl);
             } catch (e) {
                 if (!cancelled) setError(getApiErrorMessage(e));
@@ -61,7 +52,7 @@ export function CommentAttachmentLink({ attachment }: Props) {
             cancelled = true;
             if (createdUrl) URL.revokeObjectURL(createdUrl);
         };
-    }, [open, requestPath]);
+    }, [open, attachment.id]);
 
     const ct = attachment.contentType ?? "";
     const lowerName = attachment.fileName.toLowerCase();

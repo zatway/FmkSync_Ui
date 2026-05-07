@@ -65,7 +65,6 @@ export interface ProjectDetailedDto {
         fileName: string;
         contentType?: string | null;
         sizeBytes: number;
-        downloadUrl: string;
         createdAt: string;
     }>;
     permissions: {

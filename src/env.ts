@@ -8,9 +8,8 @@ export const env: Env = {
     API_AUTH_PATH: "/auth",
     API_PROJECTS_PATH: "/projects",
     API_TASK_PATH: "/Task",
-    API_TASK_COMMENTS_PATH: "/TaskComments",
+    API_TASK_COMMENTS_PATH: "/taskComments",
     API_ADMIN_PATH: "/admin",
-    API_ORGANIZATION_PATH: "/Organization",
     API_PROFILE_PATH: "/profile",
 
     PROJECT_TASK_STATUS_COLUMNS_SUFFIX: "/task-status-columns",

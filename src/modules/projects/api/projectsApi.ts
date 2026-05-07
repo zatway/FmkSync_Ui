@@ -22,8 +22,11 @@ export const projectsApi = api.injectEndpoints({
             }),
             providesTags: (result) =>
                 result
-                    ? [...result.map(({ id }) => ({ type: "Project" as const, id })), "Project"]
-                    : ["Project"],
+                    ? [
+                          ...result.map(({ id }) => ({ type: "Project" as const, id })),
+                          { type: "Project" as const, id: "LIST" },
+                      ]
+                    : [{ type: "Project" as const, id: "LIST" }],
         }),
 
         getProjectById: builder.query<ProjectDetailedDto, string>({
@@ -120,7 +123,7 @@ export const projectsApi = api.injectEndpoints({
                 method: "PUT",
                 data,
             }),
-            invalidatesTags: ["Project"],
+            invalidatesTags: [{ type: "Project", id: "LIST" }, "Project"],
         }),
 
         updateProject: builder.mutation<void, UpdateProjectRequest & { id: string }>({
@@ -129,7 +132,11 @@ export const projectsApi = api.injectEndpoints({
                 method: "PATCH",
                 data,
             }),
-            invalidatesTags: (_, __, { id }) => [{ type: "Project", id }, "Project"],
+            invalidatesTags: (_, __, { id }) => [
+                { type: "Project", id },
+                { type: "Project", id: "LIST" },
+                "Project",
+            ],
         }),
 
         deleteProject: builder.mutation<void, string>({
@@ -137,7 +144,7 @@ export const projectsApi = api.injectEndpoints({
                 url: getUrl(`/${id}`),
                 method: "DELETE",
             }),
-            invalidatesTags: ["Project"],
+            invalidatesTags: [{ type: "Project", id: "LIST" }, "Project"],
         }),
 
         getProjectHistory: builder.query<ProjectHistoryEntryDto[], string>({
@@ -181,7 +188,7 @@ export const projectsApi = api.injectEndpoints({
         >({
             query: ({ commentId, files }) => {
                 const fd = new FormData();
-                files.forEach((f) => fd.append("files", f));
+                files.forEach((f) => fd.append("files", f, f.name));
                 return {
                     url: getUrl(`/comments/${commentId}/attachments`),
                     method: "POST",

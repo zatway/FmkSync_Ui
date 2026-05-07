@@ -21,7 +21,7 @@ import {
     TableRow,
 } from "@/shared/ui_shadcn/table";
 import { Button } from "@/shared/ui_shadcn/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui_shadcn/avatar";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 import { Progress } from "@/shared/ui_shadcn/progress";
 import { Label } from "@/shared/ui_shadcn/label";
 import { Checkbox } from "@/shared/ui_shadcn/checkbox";
@@ -32,9 +32,7 @@ import { AppRoutes } from "@/app/routes/AppRoutes";
 
 export function ProjectsTable() {
     const [showArchived, setShowArchived] = useState(false);
-    const { data: projects, isLoading } = useGetProjectsQuery(
-        showArchived ? { includeArchived: true } : undefined,
-    );
+    const { data: projects, isLoading } = useGetProjectsQuery(showArchived ? { includeArchived: true } : {});
     const [deleteProject] = useDeleteProjectMutation();
     const navigate = useNavigate();
 
@@ -71,10 +69,12 @@ export function ProjectsTable() {
                 header: "Владелец",
                 cell: ({ row }) => (
                     <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                            <AvatarImage src={row.original.ownerAvatarUrl} alt={row.original.ownerName} />
-                            <AvatarFallback>{row.original.ownerName?.[0]?.toUpperCase()}</AvatarFallback>
-                        </Avatar>
+                        <UserAvatar
+                            size="sm"
+                            userId={row.original.ownerId}
+                            name={row.original.ownerName}
+                            hasAvatar={row.original.ownerHasAvatar === true}
+                        />
                         <span>{row.original.ownerName}</span>
                     </div>
                 ),

@@ -103,7 +103,7 @@ function ChartTooltip({
 }
 
 const AnalyticsPage = () => {
-    const { data: projects = [] } = useGetProjectsQuery();
+    const { data: projects = [] } = useGetProjectsQuery({});
     const [projectId, setProjectId] = useState<string>("");
     const queryArg = useMemo(() => (projectId ? { projectId } : undefined), [projectId]);
     const { data, isLoading, error } = useGetAnalyticsDashboardQuery(queryArg);

@@ -1,8 +1,10 @@
 import {ProjectHistoryEntryDto} from "@/types/dto/projects/ProjectHistoryEntryDto";
 import {Card, CardContent, CardHeader} from "@/shared/ui_shadcn/card";
-import {Avatar, AvatarFallback, AvatarImage} from "@/shared/ui_shadcn/avatar";
+import {UserAvatar} from "@/shared/ui/UserAvatar";
 import {format, parseISO} from "date-fns";
 import {ru} from "date-fns/locale";
+
+const emptyGuid = "00000000-0000-0000-0000-000000000000";
 
 function renderValue(v: unknown) {
     if (v === null || v === undefined || v === "") {
@@ -24,10 +26,21 @@ export function HistoryEntry({ entry }: { entry: ProjectHistoryEntryDto }) {
             <CardHeader className="pb-2 bg-muted/40">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                            <AvatarImage src={entry.changedBy.avatarUrl} />
-                            <AvatarFallback>{entry.changedBy.name[0]}</AvatarFallback>
-                        </Avatar>
+                        {entry.changedBy.id && entry.changedBy.id !== emptyGuid ? (
+                            <UserAvatar
+                                size="sm"
+                                userId={entry.changedBy.id}
+                                name={entry.changedBy.name}
+                                hasAvatar={entry.changedBy.hasAvatar === true}
+                            />
+                        ) : (
+                            <div
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium"
+                                aria-hidden
+                            >
+                                {entry.changedBy.name?.trim()?.[0]?.toUpperCase() ?? "?"}
+                            </div>
+                        )}
                         <div>
                             <p className="font-medium">{entry.changedBy.name}</p>
                             <p className="text-xs text-muted-foreground">

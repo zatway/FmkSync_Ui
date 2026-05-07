@@ -1,4 +1,5 @@
 import { api } from "@/shared/lib";
+import type { CommentAttachmentDto } from "@/types/dto/attachments/CommentAttachmentDto";
 
 const base = `/knowledge`;
 
@@ -28,6 +29,7 @@ export type KnowledgeArticleDetail = {
     projectId?: string | null;
     projectKey?: string | null;
     projectName?: string | null;
+    attachments?: CommentAttachmentDto[];
 };
 
 export type KnowledgeListParams = {
@@ -84,6 +86,18 @@ export const knowledgeApi = api.injectEndpoints({
             query: (id) => ({ url: `${base}/${id}`, method: "DELETE" }),
             invalidatesTags: ["Knowledge"],
         }),
+        uploadKnowledgeAttachments: builder.mutation<CommentAttachmentDto[], { articleId: string; files: File[] }>({
+            query: ({ articleId, files }) => {
+                const fd = new FormData();
+                files.forEach((f) => fd.append("files", f, f.name));
+                return {
+                    url: `${base}/${articleId}/attachments`,
+                    method: "POST",
+                    data: fd,
+                };
+            },
+            invalidatesTags: ["Knowledge"],
+        }),
     }),
     overrideExisting: false,
 });
@@ -94,4 +108,5 @@ export const {
     useCreateKnowledgeArticleMutation,
     useUpdateKnowledgeArticleMutation,
     useDeleteKnowledgeArticleMutation,
+    useUploadKnowledgeAttachmentsMutation,
 } = knowledgeApi;

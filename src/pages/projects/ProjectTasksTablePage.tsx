@@ -19,6 +19,7 @@ import {
 } from "@/shared/ui_shadcn/select";
 import { authLocalService } from "@/shared/lib";
 import { canCreateTasks as roleCanCreateTasks } from "@/modules/tasks/lib/taskAccess";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 
 export default function ProjectTasksTablePage() {
     const { projectId } = useParams<{ projectId: string }>();
@@ -168,8 +169,36 @@ export default function ProjectTasksTablePage() {
                                     <Badge variant="secondary">{t.status.name}</Badge>
                                 </TableCell>
                                 <TableCell className="hidden md:table-cell">{t.priority}</TableCell>
-                                <TableCell className="hidden lg:table-cell">{t.assignee?.name ?? "—"}</TableCell>
-                                <TableCell className="hidden lg:table-cell">{t.responsible?.name ?? "—"}</TableCell>
+                                <TableCell className="hidden lg:table-cell">
+                                    {t.assignee ? (
+                                        <div className="flex items-center gap-2">
+                                            <UserAvatar
+                                                size="s"
+                                                userId={t.assignee.id}
+                                                name={t.assignee.name}
+                                                hasAvatar={t.assignee.hasAvatar ?? false}
+                                            />
+                                            <span className="truncate">{t.assignee.name}</span>
+                                        </div>
+                                    ) : (
+                                        "—"
+                                    )}
+                                </TableCell>
+                                <TableCell className="hidden lg:table-cell">
+                                    {t.responsible ? (
+                                        <div className="flex items-center gap-2">
+                                            <UserAvatar
+                                                size="s"
+                                                userId={t.responsible.id}
+                                                name={t.responsible.name}
+                                                hasAvatar={t.responsible.hasAvatar ?? false}
+                                            />
+                                            <span className="truncate">{t.responsible.name}</span>
+                                        </div>
+                                    ) : (
+                                        "—"
+                                    )}
+                                </TableCell>
                                 <TableCell className="hidden md:table-cell whitespace-nowrap">
                                     {t.deadline ? format(parseISO(t.deadline), "d MMM yyyy", { locale: ru }) : "—"}
                                 </TableCell>

@@ -8,13 +8,12 @@ export interface TaskDetailedDto extends TaskShortDto {
     parentTaskId?: string | null;
     comments: TaskCommentDto[];
     history: TaskHistoryDto[];
-    watchers: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+    watchers: TaskAssigneeDto[];
     fileAttachments?: Array<{
         id: string;
         fileName: string;
         contentType?: string | null;
         sizeBytes: number;
-        downloadUrl: string;
         createdAt: string;
     }>;
 }

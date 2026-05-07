@@ -1,6 +1,7 @@
 import {FC} from "react";
 import type {TaskHistoryDto} from "@/types/dto/taskHistory/TaskHistoryDto";
 import {Card, CardContent, CardHeader} from "@/shared/ui_shadcn/card";
+import {UserAvatar} from "@/shared/ui/UserAvatar";
 import {format, parseISO} from "date-fns";
 import {ru} from "date-fns/locale";
 
@@ -22,6 +23,8 @@ function renderValue(v: unknown) {
     }
 }
 
+const emptyGuid = "00000000-0000-0000-0000-000000000000";
+
 const TaskHistory: FC<TaskHistoryProps> = ({ history }) => {
     const items = history ?? [];
     if (!items.length) {
@@ -34,6 +37,14 @@ const TaskHistory: FC<TaskHistoryProps> = ({ history }) => {
                     <CardHeader className="pb-2 bg-muted/40">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div className="flex items-center gap-3">
+                                {h.changedById && h.changedById !== emptyGuid ? (
+                                    <UserAvatar
+                                        size="sm"
+                                        userId={h.changedById}
+                                        name={h.changedByName}
+                                        hasAvatar={h.changedByHasAvatar === true}
+                                    />
+                                ) : null}
                                 <div>
                                     <p className="font-medium">{h.changedByName?.trim() || h.changedById || "Неизвестно"}</p>
                                     <p className="text-xs text-muted-foreground">

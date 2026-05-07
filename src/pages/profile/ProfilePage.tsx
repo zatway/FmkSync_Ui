@@ -1,20 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useGetMeAvatarQuery, useGetMeInfoQuery, useUpdateProfileMutation } from "@/modules/profile/api/profileApi";
+import { useMemo } from "react";
+import { useGetMeInfoQuery, useUpdateProfileMutation } from "@/modules/profile/api/profileApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui_shadcn/card";
 import { Button } from "@/shared/ui_shadcn/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/shared/ui_shadcn/avatar";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/shared/lib";
 import { FilePickerButton } from "@/shared/ui/FilePickerButton";
+import { UserAvatar } from "@/shared/ui/UserAvatar";
 
 export default function ProfilePage() {
     const { data: user } = useGetMeInfoQuery();
-    const { data: avatarBlob } = useGetMeAvatarQuery(undefined, { skip: !user?.hasAvatar });
     const [updateProfile, { isLoading }] = useUpdateProfileMutation();
 
-    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const initials = useMemo(() => {
         if (!user?.fullName) return "U";
         return user.fullName
@@ -25,20 +23,6 @@ export default function ProfilePage() {
             .slice(0, 2)
             .toUpperCase();
     }, [user?.fullName]);
-
-    useEffect(() => {
-        if (!user?.hasAvatar) {
-            setAvatarUrl((prev) => {
-                if (prev) URL.revokeObjectURL(prev);
-                return null;
-            });
-            return;
-        }
-        if (!avatarBlob) return;
-        const url = URL.createObjectURL(avatarBlob);
-        setAvatarUrl(url);
-        return () => URL.revokeObjectURL(url);
-    }, [user?.hasAvatar, avatarBlob]);
 
     const onPickAvatar = async (file: File | null) => {
         if (!file) return;
@@ -68,16 +52,25 @@ export default function ProfilePage() {
                     <CardTitle>Аватар</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col sm:flex-row gap-6 items-start sm:items-center">
-                    <Avatar className="h-20 w-20">
-                        {avatarUrl && <AvatarImage src={avatarUrl} />}
-                        <AvatarFallback>{initials}</AvatarFallback>
-                    </Avatar>
+                    {user ? (
+                        <UserAvatar
+                            userId={user.id}
+                            name={user.fullName}
+                            hasAvatar={user.hasAvatar}
+                            size="xl"
+                            className="ring-2 ring-border"
+                        />
+                    ) : (
+                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-lg font-medium">
+                            {initials}
+                        </div>
+                    )}
 
                     <div className="space-y-3">
                         <div className="flex items-center gap-3">
                             <FilePickerButton
                                 accept="image/*"
-                                disabled={isLoading}
+                                disabled={isLoading || !user}
                                 label="Выбрать изображение"
                                 onFiles={(f) => void onPickAvatar(f[0] ?? null)}
                             />
@@ -86,7 +79,7 @@ export default function ProfilePage() {
                             <Button
                                 type="button"
                                 variant="destructive"
-                                disabled={isLoading}
+                                disabled={isLoading || !user}
                                 onClick={() => void onDeleteAvatar()}
                             >
                                 Удалить аватар
@@ -101,13 +94,20 @@ export default function ProfilePage() {
                     <CardTitle>Данные</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm space-y-2">
-                    <div><span className="text-muted-foreground">ФИО:</span> {user?.fullName ?? "—"}</div>
-                    <div><span className="text-muted-foreground">Email:</span> {user?.email ?? "—"}</div>
-                    <div><span className="text-muted-foreground">Отдел:</span> {user?.departmentName ?? "—"}</div>
-                    <div><span className="text-muted-foreground">Должность:</span> {user?.positionName ?? "—"}</div>
+                    <div>
+                        <span className="text-muted-foreground">ФИО:</span> {user?.fullName ?? "—"}
+                    </div>
+                    <div>
+                        <span className="text-muted-foreground">Email:</span> {user?.email ?? "—"}
+                    </div>
+                    <div>
+                        <span className="text-muted-foreground">Отдел:</span> {user?.departmentName ?? "—"}
+                    </div>
+                    <div>
+                        <span className="text-muted-foreground">Должность:</span> {user?.positionName ?? "—"}
+                    </div>
                 </CardContent>
             </Card>
         </div>
     );
 }
-
