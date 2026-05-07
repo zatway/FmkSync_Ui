@@ -5,7 +5,6 @@ import { axiosInstance } from "@/shared/lib/api/baseQuery";
 import { getApiErrorMessage } from "@/shared/lib";
 import type { CommentAttachmentDto } from "@/types/dto/attachments/CommentAttachmentDto";
 import { Button } from "@/shared/ui_shadcn/button";
-import { apiPrefix } from "@/env";
 import {
     Dialog,
     DialogContent,
@@ -22,12 +21,7 @@ function pathForAuthorizedGet(downloadUrl: string): string {
     if (downloadUrl.startsWith("http://") || downloadUrl.startsWith("https://")) {
         return downloadUrl;
     }
-    const raw = downloadUrl.startsWith("/") ? downloadUrl : `/${downloadUrl}`;
-    if (raw.startsWith(`${apiPrefix}/`)) {
-        const rest = raw.slice(apiPrefix.length);
-        return rest.startsWith("/") ? rest : `/${rest}`;
-    }
-    return raw;
+    return downloadUrl;
 }
 
 /** Вложение комментария: открытие в диалоге (с превью для изображений/PDF), скачивание через авторизованный запрос. */

@@ -89,17 +89,17 @@ const RegisterForm = () => {
     };
 
     return (
-        <div className="w-full max-w-md rounded-2xl bg-card p-8 shadow-lg border">
-            <div className="flex justify-center mb-6">
-                <Logo height={100} />
+        <div className="w-full max-w-3xl rounded-2xl bg-card p-4 sm:p-6 md:p-8 shadow-lg border">
+            <div className="flex justify-center mb-4 sm:mb-5">
+                <Logo height={72} />
             </div>
 
-            <div className="text-center mb-6">
-                <h2 className="font-bold text-lg">Регистрация</h2>
+            <div className="text-center mb-4 sm:mb-5">
+                <h2 className="font-bold text-lg sm:text-xl">Регистрация</h2>
             </div>
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
                     <FormField
                         control={form.control}
                         name="fullName"
@@ -165,6 +165,7 @@ const RegisterForm = () => {
                                 <FormControl>
                                     <DepartmentSelect
                                         selectedDepartmentId={field.value || undefined}
+                                        hiddenNames={["Admin"]}
                                         onChange={(id) => {
                                             field.onChange(id ?? "");
                                             form.setValue("positionId", "");
@@ -222,7 +223,7 @@ const RegisterForm = () => {
                         control={form.control}
                         name="agree"
                         render={({ field }) => (
-                            <FormItem className="flex flex-row items-start gap-2 space-y-0">
+                            <FormItem className="flex flex-row items-start gap-2 space-y-0 md:col-span-2">
                                 <FormControl>
                                     <Checkbox
                                         checked={field.value}
@@ -242,13 +243,13 @@ const RegisterForm = () => {
                     <Button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full mt-2"
+                        className="w-full mt-1 md:col-span-2"
                     >
                         {isLoading ? "Регистрация..." : "Зарегистрироваться"}
                     </Button>
                     <button
                         type="button"
-                        className="text-sm text-muted-foreground hover:underline text-center w-full"
+                        className="text-sm text-muted-foreground hover:underline text-center w-full md:col-span-2"
                         onClick={() => navigate(AppRoutes.LOGIN)}
                     >
                         Есть аккаунт? Войти

@@ -12,6 +12,7 @@ import {cn} from "@/shared/lib/ui_shadcn/utils";
 import {useNavigate} from "react-router-dom";
 import {AppRoutes} from "@/app/routes/AppRoutes";
 import {ProjectTaskPriority} from "@/types/dto/enums/ProjectTaskPriority";
+import {UserAvatar} from "@/shared/ui/UserAvatar";
 
 export const DND_TASK_ID_PREFIX = "task:";
 
@@ -96,10 +97,8 @@ function TaskCardContent({task, projectId, overlayStyle, doneColumnId, onCloseTa
                             </Button>
                         )}
                         {task.assignee && (
-                            <Avatar className="h-6 w-6 shrink-0">
-                                <AvatarImage src={task.assignee.avatarUrl ?? undefined}/>
-                                <AvatarFallback>{task.assignee.name[0]}</AvatarFallback>
-                            </Avatar>
+                            <UserAvatar size='s' userId={task.assignee.id}
+                                        hasAvatar={task.assignee.hasAvatar ?? false}/>
                         )}
                     </div>
                 </div>

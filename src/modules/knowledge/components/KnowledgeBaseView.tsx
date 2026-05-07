@@ -5,6 +5,7 @@ import {Input} from "@/shared/ui_shadcn/input";
 import {Textarea} from "@/shared/ui_shadcn/textarea";
 import {Label} from "@/shared/ui_shadcn/label";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/shared/ui_shadcn/select";
+import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/shared/ui_shadcn/dialog";
 import {
     useCreateKnowledgeArticleMutation,
     useDeleteKnowledgeArticleMutation,
@@ -22,6 +23,7 @@ import {buildKnowledgeTree} from "@/modules/knowledge/lib/knowledgeTree";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {useGetProjectsQuery} from "@/modules/projects/api/projectsApi";
+import {toast} from "sonner";
 
 export function KnowledgeBaseView() {
     const {slug} = useParams<{ slug?: string }>();
@@ -55,6 +57,8 @@ export function KnowledgeBaseView() {
     const [editMode, setEditMode] = useState(false);
     const [parentIdForCreate, setParentIdForCreate] = useState<string | null>(null);
     const [projectIdForCreate, setProjectIdForCreate] = useState<string>(projectIdFilter ?? "");
+    const [formError, setFormError] = useState<string | null>(null);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const {data: projects = []} = useGetProjectsQuery();
 
     const tree = useMemo(() => buildKnowledgeTree(list ?? []), [list]);
@@ -97,6 +101,7 @@ export function KnowledgeBaseView() {
 
     const handleCreate = async () => {
         try {
+            setFormError(null);
             const created = await createArticle({
                 title,
                 contentMarkdown: content,
@@ -109,30 +114,36 @@ export function KnowledgeBaseView() {
                 generatePath(env.ROUTE_KNOWLEDGE_ARTICLE, {slug: created.slug}) + searchSuffix,
             );
         } catch (e) {
-            alert(getApiErrorMessage(e));
+            const message = getApiErrorMessage(e);
+            setFormError(message);
+            toast.error(message);
         }
     };
 
     const handleSaveEdit = async () => {
         if (!article) return;
         try {
+            setFormError(null);
             await updateArticle({
                 id: article.id,
                 body: {title, contentMarkdown: content},
             }).unwrap();
             setEditMode(false);
         } catch (e) {
-            alert(getApiErrorMessage(e));
+            const message = getApiErrorMessage(e);
+            setFormError(message);
         }
     };
 
     const handleDelete = async () => {
-        if (!article || !confirm("Удалить статью?")) return;
+        if (!article) return;
         try {
             await deleteArticle(article.id).unwrap();
+            toast.success("Статья удалена");
+            setDeleteDialogOpen(false);
             navigate({pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString()});
         } catch (e) {
-            alert(getApiErrorMessage(e));
+            toast.error(getApiErrorMessage(e));
         }
     };
 
@@ -256,6 +267,9 @@ export function KnowledgeBaseView() {
                                     Отмена
                                 </Button>
                             </div>
+                            {formError && (
+                                <p className="text-sm text-destructive">{formError}</p>
+                            )}
                         </div>
                     )}
 
@@ -284,7 +298,7 @@ export function KnowledgeBaseView() {
                                                     type="button"
                                                     size="sm"
                                                     variant="destructive"
-                                                    onClick={handleDelete}
+                                                    onClick={() => setDeleteDialogOpen(true)}
                                                     disabled={deleting}
                                                 >
                                                     Удалить
@@ -336,6 +350,24 @@ export function KnowledgeBaseView() {
                     )}
                 </section>
             </div>
+            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Удалить статью?</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Это действие необратимо. Статья будет удалена без возможности восстановления.
+                    </p>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                            Отмена
+                        </Button>
+                        <Button type="button" variant="destructive" onClick={() => void handleDelete()} disabled={deleting}>
+                            Удалить
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

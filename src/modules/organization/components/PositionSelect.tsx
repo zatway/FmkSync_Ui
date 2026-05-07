@@ -10,16 +10,24 @@ interface PositionSelectProps {
 
 const PositionSelect: FC<PositionSelectProps> = ({ selectedPositionId, departmentId, onChange }) => {
     const { data: positions, isLoading, isError } = usePositions(departmentId);
+    const isDepartmentSelected = Boolean(departmentId);
+    const isDisabled = !isDepartmentSelected || isLoading || isError;
 
     return (
         <select
-            className="border rounded-md p-2 bg-background"
+            className="border rounded-md p-2 bg-background w-full h-10"
             value={selectedPositionId ?? ""}
             onChange={(e) => onChange(e.target.value)}
-            disabled={isLoading || isError}
+            disabled={isDisabled}
         >
             <option value="">
-                {isLoading ? "Загрузка..." : isError ? "Ошибка загрузки" : "Выберите должность"}
+                {!isDepartmentSelected
+                    ? "Сначала выберите подразделение"
+                    : isLoading
+                        ? "Загрузка..."
+                        : isError
+                            ? "Ошибка загрузки"
+                            : "Выберите должность"}
             </option>
             {positions?.map((p) => (
                 <option key={p.id} value={p.id}>

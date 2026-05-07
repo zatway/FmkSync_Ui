@@ -4,9 +4,10 @@ import { authLocalService } from "@/shared/lib";
 import { env } from "@/env";
 import { cn } from "@/shared/lib/ui_shadcn/utils";
 
-type Size = "sm" | "md" | "lg";
+type Size = "s" | "sm" | "md" | "lg";
 
 const sizeClass: Record<Size, string> = {
+    s: "h-6 w-6 text-xs",
     sm: "h-8 w-8 text-xs",
     md: "h-10 w-10",
     lg: "h-12 w-12",
@@ -43,7 +44,7 @@ export function UserAvatar({
             const token = authLocalService.getToken();
             if (!token) return;
             try {
-                const res = await fetch(`${env.VITE_API_BASE_URL}/profile/users/${userId}/avatar`, {
+                const res = await fetch(`${env.VITE_API_BASE_URL}/api/v1/profile/users/${userId}/avatar`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (!res.ok || cancelled) return;

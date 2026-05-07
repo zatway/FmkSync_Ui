@@ -8,7 +8,6 @@ export type Env = {
     API_TASK_PATH: string;
     API_TASK_COMMENTS_PATH: string;
     API_ADMIN_PATH: string;
-    API_ORGANIZATION_PATH: string;
     API_PROFILE_PATH: string;
 
     API_DEPARTMENTS_PATH: string;

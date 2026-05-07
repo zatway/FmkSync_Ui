@@ -6,7 +6,7 @@ import { env } from '@/env'
 import { authLocalService } from '@/shared/lib/localStorageService/authLocalService'
 
 export const axiosInstance = axios.create({
-    baseURL: env.VITE_API_BASE_URL,
+    baseURL: `${env.VITE_API_BASE_URL}/api/v1`,
     timeout: 30000,
     headers: {
         Accept: 'application/json',
@@ -21,10 +21,8 @@ axiosInstance.interceptors.request.use(config => {
         config.headers.Authorization = `Bearer ${token}`
     }
 
-    // Let axios set proper Content-Type for multipart/form-data
     if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
         if (config.headers) {
-            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
             delete config.headers['Content-Type']
         }
     } else {

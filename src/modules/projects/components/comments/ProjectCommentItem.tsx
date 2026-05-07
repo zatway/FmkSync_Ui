@@ -7,6 +7,7 @@ import { Trash2, Reply, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { UserAvatar } from "@/shared/ui/UserAvatar";
 import { Button } from "@/shared/ui_shadcn/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui_shadcn/dialog";
 import { ProjectCommentForm } from "@/modules/projects";
 import { ProjectCommentDto } from "@/types/dto/projectComments/ProjectCommentDto";
 import { cn } from "@/shared/lib/ui_shadcn/utils";
@@ -23,13 +24,14 @@ interface Props {
 export function ProjectCommentItem({ comment, projectId, level }: Props) {
     const [isReplying, setIsReplying] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleteComment, { isLoading: deleting }] = useDeleteProjectCommentMutation();
 
     const handleDelete = async () => {
-        if (!confirm("Удалить комментарий и ответы к нему?")) return;
         try {
             await deleteComment({ commentId: comment.id, projectId }).unwrap();
             toast.success("Комментарий удалён");
+            setDeleteOpen(false);
         } catch (e) {
             toast.error(getApiErrorMessage(e));
         }
@@ -100,7 +102,7 @@ export function ProjectCommentItem({ comment, projectId, level }: Props) {
                         size="sm"
                         className="h-8 px-2 text-xs text-destructive"
                         disabled={deleting}
-                        onClick={() => void handleDelete()}
+                        onClick={() => setDeleteOpen(true)}
                     >
                         <Trash2 className="mr-1 h-3.5 w-3.5" />
                         Удалить
@@ -116,6 +118,24 @@ export function ProjectCommentItem({ comment, projectId, level }: Props) {
                         />
                     </div>
                 )}
+                <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Удалить комментарий?</DialogTitle>
+                        </DialogHeader>
+                        <p className="text-sm text-muted-foreground">
+                            Будет удалён комментарий и все ответы к нему.
+                        </p>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)}>
+                                Отмена
+                            </Button>
+                            <Button type="button" variant="destructive" onClick={() => void handleDelete()} disabled={deleting}>
+                                Удалить
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 {comment.replies && comment.replies.length > 0 && (
                     <div className="mt-6 space-y-6">

@@ -83,7 +83,7 @@ const ProjectForm: FC<ProjectFormProps> = ({
 
     const handleSubmit = async (value: ProjectFormValues) => {
         try {
-            const createdId = await onSubmit({...value, key: value.key?.toUpperCase() ?? ""})
+            const createdId = await onSubmit(value)
             if (!createdId) throw new Error();
             if (showSuccessToast) {
                 toast.success(successToastMessage ?? "Проект успешно создан");
@@ -152,6 +152,7 @@ const ProjectForm: FC<ProjectFormProps> = ({
                                                 placeholder="PATIENT, CRM26, DIAG2026"
                                                 className="h-11 uppercase text-base"
                                                 {...field}
+                                                onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                                             />
                                         </FormControl>
                                         <FormDescription>Будет использоваться в номерах задач:

@@ -8,9 +8,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      # Деплой: API на хосте (host network) — достучаться из контейнера через host-gateway.
       BACKEND_UPSTREAM: ${BACKEND_UPSTREAM:-http://host.docker.internal:5237}
       PROD_ENV_VITE_BACKEND_ORIGIN: ${PROD_ENV_VITE_BACKEND_ORIGIN:-http://localhost:5237}
-      PROD_ENV_VITE_API_PREFIX: ${PROD_ENV_VITE_API_PREFIX:-/api/v1}
     ports:
       - "80:80"

@@ -46,43 +46,24 @@ export const env: Env = {
 };
 
 const LOCAL_API_ORIGIN_DEFAULT = "http://localhost:5237";
-const API_PREFIX_DEFAULT = "/api/v1";
 
 function isLocalHost(hostname: string): boolean {
     return hostname === "localhost" || hostname === "127.0.0.1";
-}
-
-function normalizePrefix(prefix: string): string {
-    if (!prefix) return API_PREFIX_DEFAULT;
-    const withStartSlash = prefix.startsWith("/") ? prefix : `/${prefix}`;
-    return withStartSlash.endsWith("/") ? withStartSlash.slice(0, -1) : withStartSlash;
 }
 
 function getApiOrigin(): string {
     const currentOrigin = globalThis.location.origin;
     const currentHost = globalThis.location.hostname;
 
-    // На проде/стендах (не localhost) берём текущий origin страницы.
     if (!isLocalHost(currentHost)) {
         return currentOrigin;
-    }
-
-    const runtimeOrigin = eval('"PROD_ENV_VITE_BACKEND_ORIGIN"');
-    if (runtimeOrigin && runtimeOrigin.trim() !== "") {
-        return runtimeOrigin;
     }
 
     return LOCAL_API_ORIGIN_DEFAULT;
 }
 
-function getApiPrefix(): string {
-    const runtimePrefix = eval('"PROD_ENV_VITE_API_PREFIX"');
-    return normalizePrefix(runtimePrefix || API_PREFIX_DEFAULT);
-}
-
 export const apiOrigin = getApiOrigin();
-export const apiPrefix = getApiPrefix();
-env.VITE_API_BASE_URL = `${apiOrigin}${apiPrefix}`;
+env.VITE_API_BASE_URL = apiOrigin;
 
 /** Полный URL хаба SignalR (вне префикса `/api/v1`). */
 export function getSignalRNotificationsHubUrl(): string {

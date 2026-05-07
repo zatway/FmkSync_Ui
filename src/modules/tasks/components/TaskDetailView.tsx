@@ -11,6 +11,7 @@ import {
 import { useGetProjectByIdQuery, useGetProjectTaskStatusColumnsQuery } from "@/modules/projects/api/projectsApi";
 import { AppRoutes } from "@/app/routes/AppRoutes";
 import { Button } from "@/shared/ui_shadcn/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui_shadcn/dialog";
 import { ArrowLeft, BookOpen, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/shared/ui_shadcn/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui_shadcn/card";
@@ -50,6 +51,9 @@ export function TaskDetailView() {
     const [files, setFiles] = useState<File[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState("");
+    const [deleteTaskDialogOpen, setDeleteTaskDialogOpen] = useState(false);
+    const [deleteCommentDialogOpen, setDeleteCommentDialogOpen] = useState(false);
+    const [commentIdToDelete, setCommentIdToDelete] = useState<string | null>(null);
 
     const currentUserId = useMemo(() => {
         const t = authLocalService.getToken();
@@ -99,10 +103,10 @@ export function TaskDetailView() {
 
     const handleDelete = async () => {
         if (!taskId || !projectId || !task) return;
-        if (!confirm("Удалить задачу?")) return;
         try {
             await remove({ id: taskId, projectId }).unwrap();
             toast.success("Задача удалена");
+            setDeleteTaskDialogOpen(false);
             navigate(`${AppRoutes.TASKS}/${projectId}`);
         } catch (e) {
             toast.error(getApiErrorMessage(e));
@@ -151,10 +155,11 @@ export function TaskDetailView() {
     };
 
     const removeComment = async (id: string) => {
-        if (!confirm("Удалить комментарий?")) return;
         try {
             await deleteCommentMut({ id }).unwrap();
             toast.success("Комментарий удалён");
+            setDeleteCommentDialogOpen(false);
+            setCommentIdToDelete(null);
         } catch (e) {
             toast.error(getApiErrorMessage(e));
         }
@@ -203,7 +208,7 @@ export function TaskDetailView() {
                     </Button>
                 ) : null}
                 {canMutate ? (
-                    <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting}>
+                    <Button variant="destructive" size="sm" onClick={() => setDeleteTaskDialogOpen(true)} disabled={deleting}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         Удалить
                     </Button>
@@ -243,10 +248,10 @@ export function TaskDetailView() {
                 <CardContent className="text-sm text-muted-foreground">
                     <p className="mb-3">Статьи по этой задаче (и по проекту целиком).</p>
                     <Link
-                        to={`${AppRoutes.KNOWLEDGE}?projectId=${projectId}&taskId=${taskId}`}
+                        to={`${AppRoutes.KNOWLEDGE}?projectId=${projectId}`}
                         className="font-medium text-primary underline underline-offset-2 hover:no-underline"
                     >
-                        Открыть статьи по задаче
+                        Открыть статьи проекта
                     </Link>
                 </CardContent>
             </Card>
@@ -343,7 +348,10 @@ export function TaskDetailView() {
                                 onStartEdit={startEdit}
                                 onSaveEdit={() => void saveEdit()}
                                 onEditContentChange={setEditContent}
-                                onRemove={(id) => void removeComment(id)}
+                                onRemove={(id) => {
+                                    setCommentIdToDelete(id);
+                                    setDeleteCommentDialogOpen(true);
+                                }}
                             />
                         ))}
                     </div>
@@ -359,6 +367,47 @@ export function TaskDetailView() {
                     </div>
                 </CardContent>
             </Card>
+            <Dialog open={deleteTaskDialogOpen} onOpenChange={setDeleteTaskDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Удалить задачу?</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Это действие необратимо. Задача и связанные данные будут удалены.
+                    </p>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setDeleteTaskDialogOpen(false)}>
+                            Отмена
+                        </Button>
+                        <Button type="button" variant="destructive" onClick={() => void handleDelete()} disabled={deleting}>
+                            Удалить
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={deleteCommentDialogOpen} onOpenChange={setDeleteCommentDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Удалить комментарий?</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-sm text-muted-foreground">
+                        Комментарий будет удалён без возможности восстановления.
+                    </p>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setDeleteCommentDialogOpen(false)}>
+                            Отмена
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => commentIdToDelete && void removeComment(commentIdToDelete)}
+                            disabled={deletingComment || !commentIdToDelete}
+                        >
+                            Удалить
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
