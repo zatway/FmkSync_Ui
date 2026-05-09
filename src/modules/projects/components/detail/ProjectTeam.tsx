@@ -2,12 +2,14 @@ import {Card, CardContent, CardHeader, CardTitle} from "@/shared/ui_shadcn/card"
 import {Separator} from "@/shared/ui_shadcn/separator";
 import {ProjectDetailedDto} from "@/types/dto/projects/ProjectDetailedDto";
 import {UserAvatar} from "@/shared/ui/UserAvatar";
+import {isSystemSeededAdminDisplayName} from "@/shared/lib/users/systemSeededAdminDisplay";
 
 interface Props {
     project: ProjectDetailedDto;
 }
 
 export function ProjectTeam({project}: Props) {
+    const visibleMembers = (project.members ?? []).filter((m) => !isSystemSeededAdminDisplayName(m.name));
     return (
         <Card>
             <CardHeader>
@@ -28,13 +30,13 @@ export function ProjectTeam({project}: Props) {
                     </div>
                 </div>
 
-                {project.members?.length > 0 && (
+                {visibleMembers.length > 0 && (
                     <>
                         <Separator className="my-4"/>
                         <div className="space-y-3">
-                            <p className="text-sm font-medium">Участники ({project.members.length})</p>
+                            <p className="text-sm font-medium">Участники ({visibleMembers.length})</p>
                             <div className="flex -space-x-2">
-                                {project.members.slice(0, 5).map((member) => (
+                                {visibleMembers.slice(0, 5).map((member) => (
                                     <UserAvatar
                                         key={member.id}
                                         userId={member.id}
@@ -44,10 +46,10 @@ export function ProjectTeam({project}: Props) {
                                         className="h-8 w-8 border-2 border-background"
                                     />
                                 ))}
-                                {project.members.length > 5 && (
+                                {visibleMembers.length > 5 && (
                                     <div
                                         className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium border-2 border-background">
-                                        +{project.members.length - 5}
+                                        +{visibleMembers.length - 5}
                                     </div>
                                 )}
                             </div>

@@ -4,7 +4,6 @@ import {Button} from "@/shared/ui_shadcn/button";
 import {Input} from "@/shared/ui_shadcn/input";
 import {Textarea} from "@/shared/ui_shadcn/textarea";
 import {Label} from "@/shared/ui_shadcn/label";
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/shared/ui_shadcn/select";
 import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from "@/shared/ui_shadcn/dialog";
 import {
     useCreateKnowledgeArticleMutation,
@@ -13,6 +12,7 @@ import {
     useGetKnowledgeArticlesQuery,
     useUpdateKnowledgeArticleMutation,
     useUploadKnowledgeAttachmentsMutation,
+    type KnowledgeArticleDetail,
 } from "@/modules/knowledge/api/knowledgeApi";
 import {AppRoutes} from "@/app/routes/AppRoutes";
 import {authLocalService, getApiErrorMessage} from "@/shared/lib";
@@ -21,8 +21,7 @@ import {env} from "@/env";
 import {BookOpen, FolderOpen, ListTree} from "lucide-react";
 import {KnowledgeTree} from "@/modules/knowledge/components/KnowledgeTree";
 import {buildKnowledgeTree} from "@/modules/knowledge/lib/knowledgeTree";
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { KnowledgeMarkdownBody } from "@/modules/knowledge/components/KnowledgeMarkdownBody";
 import {useGetProjectsQuery} from "@/modules/projects/api/projectsApi";
 import {toast} from "sonner";
 import {FilePickerButton} from "@/shared/ui/FilePickerButton";
@@ -59,24 +58,23 @@ export function KnowledgeBaseView() {
     const [title, setTitle] = useState("");
     const [content, setContent] = useState("");
     const [editMode, setEditMode] = useState(false);
-    const [parentIdForCreate, setParentIdForCreate] = useState<string | null>(null);
-    const [projectIdForCreate, setProjectIdForCreate] = useState<string>(projectIdFilter ?? "");
+    /** Ответ POST create до того, как подтянется GET по slug (чтобы сразу грузить вложения). */
+    const [bootstrapArticle, setBootstrapArticle] = useState<KnowledgeArticleDetail | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [kbAttachFiles, setKbAttachFiles] = useState<File[]>([]);
-    const {data: projects = []} = useGetProjectsQuery({});
+    const { data: projects = [] } = useGetProjectsQuery({ includeArchived: true });
+
+    const effectiveArticle = article ?? bootstrapArticle;
 
     const tree = useMemo(() => buildKnowledgeTree(list ?? []), [list]);
 
-    const scopeLabel = useMemo(() => {
-        if (!list?.length) return null;
-        const first = list[0];
-        if (projectIdFilter && first.projectName) return `Проект «${first.projectName}»`;
-        if (projectIdFilter) return "Фильтр по проекту";
-        return null;
-    }, [list, projectIdFilter]);
-
-    const isCreateMode = !(slug && article);
+    const filteredProjectTitle = useMemo(() => {
+        if (!projectIdFilter) return null;
+        const fromArticle = list?.find((a) => a.projectId === projectIdFilter)?.projectName;
+        if (fromArticle) return fromArticle;
+        return projects.find((p) => p.id === projectIdFilter)?.name ?? null;
+    }, [projectIdFilter, list, projects]);
 
     useEffect(() => {
         if (article) {
@@ -86,58 +84,68 @@ export function KnowledgeBaseView() {
     }, [article?.id, article?.updatedAt, article?.title, article?.contentMarkdown]);
 
     useEffect(() => {
+        if (article?.id && bootstrapArticle && article.id === bootstrapArticle.id) {
+            setBootstrapArticle(null);
+        }
+    }, [article?.id, bootstrapArticle]);
+
+    useEffect(() => {
         setKbAttachFiles([]);
     }, [article?.id]);
 
-    const openCreate = () => {
-        setTitle("");
-        setContent("");
-        setParentIdForCreate(null);
-        setProjectIdForCreate(projectIdFilter ?? "");
-        setEditMode(true);
-        navigate({pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString()});
-    };
-
-    const handleAddChild = (parentId: string) => {
-        const parent = list?.find((a) => a.id === parentId);
-        setParentIdForCreate(parentId);
-        setProjectIdForCreate(parent?.projectId ?? "");
-        setTitle("");
-        setContent("");
-        setEditMode(true);
-        navigate({pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString()});
-    };
-
-    const handleCreate = async () => {
+    const openCreate = async () => {
+        if (!canEdit) return;
         try {
             setFormError(null);
+            setBootstrapArticle(null);
             const created = await createArticle({
-                title,
-                contentMarkdown: content,
-                parentId: parentIdForCreate ?? undefined,
-                projectId: projectIdForCreate || undefined,
+                title: "Новая статья",
+                contentMarkdown: "",
+                projectId: projectIdFilter || undefined,
             }).unwrap();
-            setEditMode(false);
-            setParentIdForCreate(null);
-            navigate(
-                generatePath(env.ROUTE_KNOWLEDGE_ARTICLE, {slug: created.slug}) + searchSuffix,
-            );
+            setBootstrapArticle(created);
+            setTitle(created.title);
+            setContent(created.contentMarkdown);
+            setEditMode(true);
+            navigate(generatePath(env.ROUTE_KNOWLEDGE_ARTICLE, {slug: created.slug}) + searchSuffix);
         } catch (e) {
-            const message = getApiErrorMessage(e);
-            setFormError(message);
-            toast.error(message);
+            toast.error(getApiErrorMessage(e));
+        }
+    };
+
+    const handleAddChild = async (parentId: string) => {
+        if (!canEdit) return;
+        const parent = list?.find((a) => a.id === parentId);
+        try {
+            setFormError(null);
+            setBootstrapArticle(null);
+            const created = await createArticle({
+                title: "Новая статья",
+                contentMarkdown: "",
+                parentId,
+                projectId: parent?.projectId ?? projectIdFilter ?? undefined,
+            }).unwrap();
+            setBootstrapArticle(created);
+            setTitle(created.title);
+            setContent(created.contentMarkdown);
+            setEditMode(true);
+            navigate(generatePath(env.ROUTE_KNOWLEDGE_ARTICLE, {slug: created.slug}) + searchSuffix);
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
         }
     };
 
     const handleSaveEdit = async () => {
-        if (!article) return;
+        const art = article ?? bootstrapArticle;
+        if (!art) return;
         try {
             setFormError(null);
             await updateArticle({
-                id: article.id,
+                id: art.id,
                 body: {title, contentMarkdown: content},
             }).unwrap();
             setEditMode(false);
+            setBootstrapArticle(null);
         } catch (e) {
             const message = getApiErrorMessage(e);
             setFormError(message);
@@ -145,9 +153,10 @@ export function KnowledgeBaseView() {
     };
 
     const handleUploadKbAttachments = async () => {
-        if (!article?.id || kbAttachFiles.length === 0) return;
+        const art = article ?? bootstrapArticle;
+        if (!art?.id || kbAttachFiles.length === 0) return;
         try {
-            await uploadKnowledgeAttachments({ articleId: article.id, files: kbAttachFiles }).unwrap();
+            await uploadKnowledgeAttachments({ articleId: art.id, files: kbAttachFiles }).unwrap();
             setKbAttachFiles([]);
             toast.success("Вложения загружены");
         } catch (e) {
@@ -156,12 +165,58 @@ export function KnowledgeBaseView() {
     };
 
     const handleDelete = async () => {
-        if (!article) return;
+        const art = article ?? bootstrapArticle;
+        if (!art) return;
         try {
-            await deleteArticle(article.id).unwrap();
+            await deleteArticle(art.id).unwrap();
             toast.success("Статья удалена");
             setDeleteDialogOpen(false);
             navigate({pathname: env.ROUTE_KNOWLEDGE, search: searchParams.toString()});
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
+        }
+    };
+
+    const insertAtCursor = (snippet: string) => {
+        const el = document.getElementById("kb-body") as HTMLTextAreaElement | null;
+        if (el) {
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            setContent((c) => c.slice(0, start) + snippet + c.slice(end));
+            requestAnimationFrame(() => {
+                el.focus();
+                const pos = start + snippet.length;
+                el.setSelectionRange(pos, pos);
+            });
+        } else {
+            setContent((c) => c + snippet);
+        }
+    };
+
+    const handleInsertImagesInMarkdown = async (files: File[]) => {
+        const art = article ?? bootstrapArticle;
+        if (!art?.id) {
+            toast.error("Статья ещё не готова. Подождите секунду или обновите страницу.");
+            return;
+        }
+        const images = files.filter((f) => f.type.startsWith("image/"));
+        if (!images.length) {
+            toast.error("Выберите файлы изображений");
+            return;
+        }
+        try {
+            const uploaded = await uploadKnowledgeAttachments({ articleId: art.id, files: images }).unwrap();
+            let snippet = "";
+            for (const a of uploaded) {
+                const safeName = a.fileName.replace(/[[\]]/g, "");
+                snippet += `\n\n![${safeName}](${a.id})\n\n`;
+            }
+            insertAtCursor(snippet);
+            toast.success(
+                images.length === 1
+                    ? "Изображение добавлено в текст. Сохраните статью."
+                    : "Изображения добавлены. Сохраните статью.",
+            );
         } catch (e) {
             toast.error(getApiErrorMessage(e));
         }
@@ -175,7 +230,7 @@ export function KnowledgeBaseView() {
                     <h1 className="text-2xl font-semibold tracking-tight">База знаний</h1>
                 </div>
                 {canEdit && (
-                    <Button type="button" variant="outline" onClick={openCreate}>
+                    <Button type="button" variant="outline" onClick={() => void openCreate()} disabled={creating}>
                         Новая статья
                     </Button>
                 )}
@@ -185,8 +240,13 @@ export function KnowledgeBaseView() {
                 <div
                     className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
                     <FolderOpen className="h-4 w-4 shrink-0 text-primary"/>
-                    <span className="text-muted-foreground">Область:</span>
-                    <span className="font-medium">{scopeLabel ?? "…"}</span>
+                    <span>
+                        Показаны статьи проекта
+                        {filteredProjectTitle ? (
+                            <span className="font-medium"> «{filteredProjectTitle}»</span>
+                        ) : null}
+                        .
+                    </span>
                     <Link
                         to={env.ROUTE_KNOWLEDGE}
                         className="ml-auto text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground"
@@ -221,33 +281,6 @@ export function KnowledgeBaseView() {
                 <section className="min-h-[320px] rounded-xl border bg-card p-4 shadow-sm">
                     {editMode && canEdit && (
                         <div className="space-y-3">
-                            {parentIdForCreate && (
-                                <p className="text-xs text-muted-foreground">
-                                    Родительская статья выбрана (дочерняя запись).
-                                </p>
-                            )}
-                            {isCreateMode && (
-                                <div>
-                                    <Label htmlFor="kb-project">Проект (опционально)</Label>
-                                    <Select
-                                        value={projectIdForCreate || "__none__"}
-                                        onValueChange={(value) => setProjectIdForCreate(value === "__none__" ? "" : value)}
-                                        disabled={!!parentIdForCreate}
-                                    >
-                                        <SelectTrigger id="kb-project">
-                                            <SelectValue placeholder="Без проекта" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="__none__">Без проекта</SelectItem>
-                                            {projects.map((project) => (
-                                                <SelectItem key={project.id} value={project.id}>
-                                                    {project.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
                             <div>
                                 <Label htmlFor="kb-title">Заголовок</Label>
                                 <Input
@@ -257,8 +290,24 @@ export function KnowledgeBaseView() {
                                     placeholder="Название"
                                 />
                             </div>
-                            <div>
-                                <Label htmlFor="kb-body">Текст (Markdown)</Label>
+                            <div className="space-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <Label htmlFor="kb-body">Текст (Markdown)</Label>
+                                    {canEdit ? (
+                                        <FilePickerButton
+                                            accept="image/*"
+                                            multiple
+                                            disabled={uploadingKb}
+                                            label="Изображение в текст"
+                                            onFiles={(picked) => void handleInsertImagesInMarkdown(picked)}
+                                        />
+                                    ) : null}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Загрузите изображение — в разметку вставится ссылка вида{" "}
+                                    <code className="rounded bg-muted px-1">![имя](ka:…)</code>. Между блоками можно
+                                    писать обычный текст. Статья уже создана на сервере — вложения доступны сразу.
+                                </p>
                                 <Textarea
                                     id="kb-body"
                                     className="min-h-[240px] font-mono text-sm"
@@ -266,12 +315,12 @@ export function KnowledgeBaseView() {
                                     onChange={(e) => setContent(e.target.value)}
                                 />
                             </div>
-                            {slug && article && canEdit && (
+                            {effectiveArticle && canEdit && (
                                 <div className="space-y-2 rounded-md border bg-muted/20 p-3">
                                     <Label>Вложения к статье</Label>
-                                    {article.attachments && article.attachments.length > 0 && (
+                                    {effectiveArticle.attachments && effectiveArticle.attachments.length > 0 && (
                                         <div className="flex flex-col gap-1">
-                                            {article.attachments.map((a) => (
+                                            {effectiveArticle.attachments.map((a) => (
                                                 <CommentAttachmentLink key={a.id} attachment={a} />
                                             ))}
                                         </div>
@@ -301,19 +350,21 @@ export function KnowledgeBaseView() {
                             <div className="flex flex-wrap gap-2">
                                 <Button
                                     type="button"
-                                    onClick={() =>
-                                        slug && article ? void handleSaveEdit() : void handleCreate()
-                                    }
-                                    disabled={creating || updating || (!!slug && !article)}
+                                    onClick={() => void handleSaveEdit()}
+                                    disabled={updating || !effectiveArticle}
                                 >
-                                    {slug && article ? "Сохранить" : "Создать"}
+                                    Сохранить
                                 </Button>
                                 <Button
                                     type="button"
                                     variant="ghost"
                                     onClick={() => {
                                         setEditMode(false);
-                                        setParentIdForCreate(null);
+                                        setBootstrapArticle(null);
+                                        if (article) {
+                                            setTitle(article.title);
+                                            setContent(article.contentMarkdown);
+                                        }
                                     }}
                                 >
                                     Отмена
@@ -387,13 +438,10 @@ export function KnowledgeBaseView() {
                                             ))}
                                         </div>
                                     )}
-                                    <article className="prose prose-lg prose-headings:text-white prose-p:text-gray-300
-                        prose-strong:text-violet-400 prose-code:text-pink-400
-                        max-w-none">
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                            {article.contentMarkdown}
-                                        </ReactMarkdown>
-                                    </article>
+                                    <KnowledgeMarkdownBody
+                                        markdown={article.contentMarkdown}
+                                        className="prose prose-lg prose-headings:text-white prose-p:text-gray-300 prose-strong:text-violet-400 prose-code:text-pink-400 max-w-none"
+                                    />
                                 </article>
                             )}
                             {!artLoading && !article && (

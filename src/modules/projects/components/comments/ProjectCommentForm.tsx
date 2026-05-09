@@ -13,6 +13,7 @@ import { getApiErrorMessage } from "@/shared/lib";
 import { FilePickerButton } from "@/shared/ui/FilePickerButton";
 import { useAddProjectCommentMutation } from "@/modules/projects/api/projectsApi";
 import { useGetProjectByIdQuery, useUploadProjectCommentAttachmentsMutation } from "@/modules/projects/api/projectsApi";
+import { isSystemSeededAdminDisplayName } from "@/shared/lib/users/systemSeededAdminDisplay";
 
 const commentSchema = z.object({
     content: z.string().min(1, "Комментарий не может быть пустым").max(2000),
@@ -79,9 +80,9 @@ export function ProjectCommentForm({projectId, parentId, onSuccess, initialValue
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                {project?.members?.length ? (
+                {project?.members?.some((m) => !isSystemSeededAdminDisplayName(m.name)) ? (
                     <div className="flex flex-wrap gap-2">
-                        {project.members.map((m) => (
+                        {project.members.filter((m) => !isSystemSeededAdminDisplayName(m.name)).map((m) => (
                             <button
                                 key={m.id}
                                 type="button"

@@ -51,6 +51,10 @@ import { toast } from "sonner";
 import { getApiErrorMessage } from "@/shared/lib";
 import { cn } from "@/shared/lib/ui_shadcn/utils";
 import { resolveDoneColumnId } from "@/modules/tasks/lib/resolveDoneColumnId";
+import { isSystemSeededAdminDisplayName } from "@/shared/lib/users/systemSeededAdminDisplay";
+import { taskMatchesTagFilter } from "@/modules/tasks/lib/taskTagFilter";
+import { TaskTagFilterPopover } from "@/modules/tasks/components/TaskTagFilterPopover";
+import { ProjectTagsManagePopover } from "@/modules/projects/components/ProjectTagsManagePopover";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -73,6 +77,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/shared/ui_shadcn/select";
+import { TaskFiltersCollapsible } from "@/modules/tasks/components/TaskFiltersCollapsible";
 
 const DND_COL_PREFIX = "col:";
 
@@ -212,11 +217,13 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
 
     const [filterAssigneeId, setFilterAssigneeId] = useState<string>("__all__");
     const [filterResponsibleId, setFilterResponsibleId] = useState<string>("__all__");
+    const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
 
     const assigneeFilterOptions = useMemo(() => {
         const m = new Map<string, string>();
         for (const t of serverTasksData ?? []) {
-            if (t.assignee?.id) m.set(t.assignee.id, t.assignee.name);
+            if (t.assignee?.id && !isSystemSeededAdminDisplayName(t.assignee.name))
+                m.set(t.assignee.id, t.assignee.name);
         }
         return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], "ru"));
     }, [serverTasksData]);
@@ -224,7 +231,8 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
     const responsibleFilterOptions = useMemo(() => {
         const m = new Map<string, string>();
         for (const t of serverTasksData ?? []) {
-            if (t.responsible?.id) m.set(t.responsible.id, t.responsible.name);
+            if (t.responsible?.id && !isSystemSeededAdminDisplayName(t.responsible.name))
+                m.set(t.responsible.id, t.responsible.name);
         }
         return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], "ru"));
     }, [serverTasksData]);
@@ -238,9 +246,10 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
             if (filterResponsibleId === "__none__") {
                 if (t.responsible != null) return false;
             } else if (filterResponsibleId !== "__all__" && t.responsible?.id !== filterResponsibleId) return false;
+            if (!taskMatchesTagFilter(t, filterTagIds)) return false;
             return true;
         });
-    }, [serverTasksData, filterAssigneeId, filterResponsibleId]);
+    }, [serverTasksData, filterAssigneeId, filterResponsibleId, filterTagIds]);
 
     const tasksById = useMemo(() => {
         const m = new Map<string, TaskShortDto>();
@@ -481,42 +490,55 @@ export default function ProjectKanbanBoard({ projectId }: ProjectKanbanBoardProp
     );
 
     return (
-        <div className="min-h-0 space-y-4">
-            <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:flex-wrap sm:items-end">
-                <div className="grid gap-1 sm:min-w-[180px]">
-                    <Label className="text-xs text-muted-foreground">Исполнитель</Label>
-                    <Select value={filterAssigneeId} onValueChange={setFilterAssigneeId}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Все" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="__all__">Все</SelectItem>
-                            <SelectItem value="__none__">Не назначен</SelectItem>
-                            {assigneeFilterOptions.map(([id, name]) => (
-                                <SelectItem key={id} value={id}>
-                                    {name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="grid gap-1 sm:min-w-[180px]">
-                    <Label className="text-xs text-muted-foreground">Ответственный</Label>
-                    <Select value={filterResponsibleId} onValueChange={setFilterResponsibleId}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Все" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="__all__">Все</SelectItem>
-                            <SelectItem value="__none__">Не назначен</SelectItem>
-                            {responsibleFilterOptions.map(([id, name]) => (
-                                <SelectItem key={id} value={id}>
-                                    {name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col space-y-3 sm:space-y-4">
+            <div className="shrink-0 rounded-lg border bg-muted/30 p-3">
+                <TaskFiltersCollapsible>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                        <div className="grid min-w-0 flex-1 gap-1 sm:min-w-[160px] sm:max-w-[220px] sm:flex-initial">
+                            <Label className="text-xs text-muted-foreground">Исполнитель</Label>
+                            <Select value={filterAssigneeId} onValueChange={setFilterAssigneeId}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Все" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__all__">Все</SelectItem>
+                                    <SelectItem value="__none__">Не назначен</SelectItem>
+                                    {assigneeFilterOptions.map(([id, name]) => (
+                                        <SelectItem key={id} value={id}>
+                                            {name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid min-w-0 flex-1 gap-1 sm:min-w-[160px] sm:max-w-[220px] sm:flex-initial">
+                            <Label className="text-xs text-muted-foreground">Ответственный</Label>
+                            <Select value={filterResponsibleId} onValueChange={setFilterResponsibleId}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Все" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__all__">Все</SelectItem>
+                                    <SelectItem value="__none__">Не назначен</SelectItem>
+                                    {responsibleFilterOptions.map(([id, name]) => (
+                                        <SelectItem key={id} value={id}>
+                                            {name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <TaskTagFilterPopover
+                            className="min-w-0 sm:max-w-[220px]"
+                            projectTags={project?.tags ?? []}
+                            selectedIds={filterTagIds}
+                            onSelectedIdsChange={setFilterTagIds}
+                        />
+                        {canManageTaskColumns ? (
+                            <ProjectTagsManagePopover projectId={projectId} tags={project?.tags ?? []} />
+                        ) : null}
+                    </div>
+                </TaskFiltersCollapsible>
             </div>
 
             <div className="flex flex-col items-stretch justify-end gap-2 sm:flex-row sm:items-center">

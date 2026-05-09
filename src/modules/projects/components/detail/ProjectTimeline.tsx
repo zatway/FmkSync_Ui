@@ -3,7 +3,8 @@ import { Calendar, Clock } from "lucide-react";
 import { format, parseISO, isPast } from "date-fns";
 import { ru } from "date-fns/locale";
 import { ProjectDetailedDto } from "@/types/dto/projects/ProjectDetailedDto";
-import {cn} from "@/shared/lib/ui_shadcn/utils";
+import { cn } from "@/shared/lib/ui_shadcn/utils";
+import { isMeaningfulIsoDate } from "@/shared/lib/dates/meaningfulDate";
 
 interface Props {
     project: ProjectDetailedDto;
@@ -16,7 +17,7 @@ export function ProjectTimeline({ project }: Props) {
                 <CardTitle>Сроки</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-                {project.startDate && (
+                {isMeaningfulIsoDate(project.startDate) && (
                     <div className="flex items-center gap-3">
                         <Calendar className="h-5 w-5 text-muted-foreground" />
                         <div>
@@ -28,7 +29,7 @@ export function ProjectTimeline({ project }: Props) {
                     </div>
                 )}
 
-                {project.dueDate && (
+                {isMeaningfulIsoDate(project.dueDate) && (
                     <div className="flex items-center gap-3">
                         <Calendar className="h-5 w-5 text-muted-foreground" />
                         <div>
@@ -46,7 +47,7 @@ export function ProjectTimeline({ project }: Props) {
                     </div>
                 )}
 
-                {project.completedAt && (
+                {isMeaningfulIsoDate(project.completedAt) && (
                     <div className="flex items-center gap-3">
                         <Clock className="h-5 w-5 text-emerald-600" />
                         <div>
@@ -58,7 +59,7 @@ export function ProjectTimeline({ project }: Props) {
                     </div>
                 )}
 
-                {!project.startDate && !project.dueDate && (
+                {!isMeaningfulIsoDate(project.startDate) && !isMeaningfulIsoDate(project.dueDate) && (
                     <p className="text-sm text-muted-foreground italic">Сроки не установлены</p>
                 )}
             </CardContent>

@@ -18,8 +18,15 @@ import {
     SelectValue,
 } from "@/shared/ui_shadcn/select";
 import { authLocalService } from "@/shared/lib";
+import { isMeaningfulIsoDate } from "@/shared/lib/dates/meaningfulDate";
 import { canCreateTasks as roleCanCreateTasks } from "@/modules/tasks/lib/taskAccess";
 import { UserAvatar } from "@/shared/ui/UserAvatar";
+import { taskMatchesTagFilter } from "@/modules/tasks/lib/taskTagFilter";
+import { TaskTagFilterPopover } from "@/modules/tasks/components/TaskTagFilterPopover";
+import { ProjectTagsManagePopover } from "@/modules/projects/components/ProjectTagsManagePopover";
+import { UserRole } from "@/types/dto/enums/UserRole";
+import { isSystemSeededAdminDisplayName } from "@/shared/lib/users/systemSeededAdminDisplay";
+import { TaskFiltersCollapsible } from "@/modules/tasks/components/TaskFiltersCollapsible";
 
 export default function ProjectTasksTablePage() {
     const { projectId } = useParams<{ projectId: string }>();
@@ -32,11 +39,13 @@ export default function ProjectTasksTablePage() {
 
     const [filterAssigneeId, setFilterAssigneeId] = useState<string>("__all__");
     const [filterResponsibleId, setFilterResponsibleId] = useState<string>("__all__");
+    const [filterTagIds, setFilterTagIds] = useState<string[]>([]);
 
     const assigneeFilterOptions = useMemo(() => {
         const m = new Map<string, string>();
         for (const t of tasks) {
-            if (t.assignee?.id) m.set(t.assignee.id, t.assignee.name);
+            if (t.assignee?.id && !isSystemSeededAdminDisplayName(t.assignee.name))
+                m.set(t.assignee.id, t.assignee.name);
         }
         return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], "ru"));
     }, [tasks]);
@@ -44,7 +53,8 @@ export default function ProjectTasksTablePage() {
     const responsibleFilterOptions = useMemo(() => {
         const m = new Map<string, string>();
         for (const t of tasks) {
-            if (t.responsible?.id) m.set(t.responsible.id, t.responsible.name);
+            if (t.responsible?.id && !isSystemSeededAdminDisplayName(t.responsible.name))
+                m.set(t.responsible.id, t.responsible.name);
         }
         return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1], "ru"));
     }, [tasks]);
@@ -57,9 +67,14 @@ export default function ProjectTasksTablePage() {
             if (filterResponsibleId === "__none__") {
                 if (t.responsible != null) return false;
             } else if (filterResponsibleId !== "__all__" && t.responsible?.id !== filterResponsibleId) return false;
+            if (!taskMatchesTagFilter(t, filterTagIds)) return false;
             return true;
         });
-    }, [tasks, filterAssigneeId, filterResponsibleId]);
+    }, [tasks, filterAssigneeId, filterResponsibleId, filterTagIds]);
+
+    const canManageTaskColumns =
+        project?.permissions?.canManageTaskColumns ??
+        (role === UserRole.Admin || role === UserRole.Manager);
 
     const goTask = (id: string) => {
         navigate(`${AppRoutes.TASKS}/${projectId}/detail/${id}`);
@@ -91,41 +106,54 @@ export default function ProjectTasksTablePage() {
                 ) : null}
             </div>
 
-            <div className="mb-4 flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:flex-wrap sm:items-end">
-                <div className="grid gap-1 sm:min-w-[180px]">
-                    <Label className="text-xs text-muted-foreground">Исполнитель</Label>
-                    <Select value={filterAssigneeId} onValueChange={setFilterAssigneeId}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Все" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="__all__">Все</SelectItem>
-                            <SelectItem value="__none__">Не назначен</SelectItem>
-                            {assigneeFilterOptions.map(([id, name]) => (
-                                <SelectItem key={id} value={id}>
-                                    {name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="grid gap-1 sm:min-w-[180px]">
-                    <Label className="text-xs text-muted-foreground">Ответственный</Label>
-                    <Select value={filterResponsibleId} onValueChange={setFilterResponsibleId}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Все" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="__all__">Все</SelectItem>
-                            <SelectItem value="__none__">Не назначен</SelectItem>
-                            {responsibleFilterOptions.map(([id, name]) => (
-                                <SelectItem key={id} value={id}>
-                                    {name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
+            <div className="mb-4 shrink-0 rounded-lg border bg-muted/30 p-3">
+                <TaskFiltersCollapsible>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                        <div className="grid min-w-0 flex-1 gap-1 sm:min-w-[160px] sm:max-w-[220px] sm:flex-initial">
+                            <Label className="text-xs text-muted-foreground">Исполнитель</Label>
+                            <Select value={filterAssigneeId} onValueChange={setFilterAssigneeId}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Все" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__all__">Все</SelectItem>
+                                    <SelectItem value="__none__">Не назначен</SelectItem>
+                                    {assigneeFilterOptions.map(([id, name]) => (
+                                        <SelectItem key={id} value={id}>
+                                            {name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid min-w-0 flex-1 gap-1 sm:min-w-[160px] sm:max-w-[220px] sm:flex-initial">
+                            <Label className="text-xs text-muted-foreground">Ответственный</Label>
+                            <Select value={filterResponsibleId} onValueChange={setFilterResponsibleId}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Все" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__all__">Все</SelectItem>
+                                    <SelectItem value="__none__">Не назначен</SelectItem>
+                                    {responsibleFilterOptions.map(([id, name]) => (
+                                        <SelectItem key={id} value={id}>
+                                            {name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <TaskTagFilterPopover
+                            className="min-w-0 sm:max-w-[220px]"
+                            projectTags={project?.tags ?? []}
+                            selectedIds={filterTagIds}
+                            onSelectedIdsChange={setFilterTagIds}
+                        />
+                        {canManageTaskColumns && projectId ? (
+                            <ProjectTagsManagePopover projectId={projectId} tags={project?.tags ?? []} />
+                        ) : null}
+                    </div>
+                </TaskFiltersCollapsible>
             </div>
 
             {isLoading && <p className="text-muted-foreground">Загрузка…</p>}
@@ -137,6 +165,7 @@ export default function ProjectTasksTablePage() {
                             <TableHead>Название</TableHead>
                             <TableHead className="hidden sm:table-cell whitespace-nowrap">Статус</TableHead>
                             <TableHead className="hidden md:table-cell whitespace-nowrap">Приоритет</TableHead>
+                            <TableHead className="hidden xl:table-cell">Теги</TableHead>
                             <TableHead className="hidden lg:table-cell whitespace-nowrap">Исполнитель</TableHead>
                             <TableHead className="hidden lg:table-cell whitespace-nowrap">Ответственный</TableHead>
                             <TableHead className="hidden md:table-cell whitespace-nowrap">Срок</TableHead>
@@ -163,14 +192,32 @@ export default function ProjectTasksTablePage() {
                                             {t.status.name}
                                         </Badge>
                                         <span className="text-[10px] text-muted-foreground">{t.priority}</span>
+                                        {(t.tags ?? []).map((tag) => (
+                                            <Badge key={tag.id} variant="outline" className="text-[10px] font-normal">
+                                                {tag.name}
+                                            </Badge>
+                                        ))}
                                     </div>
                                 </TableCell>
                                 <TableCell className="hidden sm:table-cell">
                                     <Badge variant="secondary">{t.status.name}</Badge>
                                 </TableCell>
                                 <TableCell className="hidden md:table-cell">{t.priority}</TableCell>
+                                <TableCell className="hidden xl:table-cell">
+                                    <div className="flex flex-wrap gap-1 max-w-[220px]">
+                                        {(t.tags ?? []).length ? (
+                                            (t.tags ?? []).map((tag) => (
+                                                <Badge key={tag.id} variant="outline" className="text-[10px] font-normal">
+                                                    {tag.name}
+                                                </Badge>
+                                            ))
+                                        ) : (
+                                            <span className="text-muted-foreground">—</span>
+                                        )}
+                                    </div>
+                                </TableCell>
                                 <TableCell className="hidden lg:table-cell">
-                                    {t.assignee ? (
+                                    {t.assignee && !isSystemSeededAdminDisplayName(t.assignee.name) ? (
                                         <div className="flex items-center gap-2">
                                             <UserAvatar
                                                 size="s"
@@ -185,7 +232,7 @@ export default function ProjectTasksTablePage() {
                                     )}
                                 </TableCell>
                                 <TableCell className="hidden lg:table-cell">
-                                    {t.responsible ? (
+                                    {t.responsible && !isSystemSeededAdminDisplayName(t.responsible.name) ? (
                                         <div className="flex items-center gap-2">
                                             <UserAvatar
                                                 size="s"
@@ -200,7 +247,7 @@ export default function ProjectTasksTablePage() {
                                     )}
                                 </TableCell>
                                 <TableCell className="hidden md:table-cell whitespace-nowrap">
-                                    {t.deadline ? format(parseISO(t.deadline), "d MMM yyyy", { locale: ru }) : "—"}
+                                    {isMeaningfulIsoDate(t.deadline) ? format(parseISO(t.deadline!), "d MMM yyyy", { locale: ru }) : "—"}
                                 </TableCell>
                             </TableRow>
                         ))}

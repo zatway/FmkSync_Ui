@@ -10,6 +10,7 @@ import { ProjectCommentDto } from "@/types/dto/projectComments/ProjectCommentDto
 import { CreateProjectCommentRequest } from "@/types/dto/projectComments/CreateProjectCommentRequest";
 import { UpdateProjectCommentRequest } from "@/types/dto/projectComments/UpdateProjectCommentRequest";
 import type { TaskStatusColumnDto } from "@/types/dto/tasks/TaskStatusColumnDto";
+import type { ProjectTagDto } from "@/types/dto/projects/ProjectTagDto";
 
 const getUrl = (endUrl: string) => `${env.API_PROJECTS_PATH}${endUrl}`;
 
@@ -35,6 +36,29 @@ export const projectsApi = api.injectEndpoints({
                 method: "GET",
             }),
             providesTags: (_, __, id) => [{ type: "Project", id }],
+        }),
+
+        createProjectTag: builder.mutation<ProjectTagDto, { projectId: string; name: string }>({
+            query: ({ projectId, name }) => ({
+                url: getUrl(`/${projectId}${env.PROJECT_TAGS}`),
+                method: "POST",
+                data: { name },
+            }),
+            invalidatesTags: (_, __, { projectId }) => [
+                { type: "Project", id: projectId },
+                { type: "Task", id: "LIST" },
+            ],
+        }),
+
+        deleteProjectTag: builder.mutation<void, { projectId: string; tagId: string }>({
+            query: ({ projectId, tagId }) => ({
+                url: getUrl(`/${projectId}${env.PROJECT_TAGS}/${tagId}`),
+                method: "DELETE",
+            }),
+            invalidatesTags: (_, __, { projectId }) => [
+                { type: "Project", id: projectId },
+                { type: "Task", id: "LIST" },
+            ],
         }),
 
         getProjectTaskStatusColumns: builder.query<TaskStatusColumnDto[], string>({
@@ -135,6 +159,7 @@ export const projectsApi = api.injectEndpoints({
             invalidatesTags: (_, __, { id }) => [
                 { type: "Project", id },
                 { type: "Project", id: "LIST" },
+                { type: "ProjectHistory", id },
                 "Project",
             ],
         }),
@@ -144,7 +169,7 @@ export const projectsApi = api.injectEndpoints({
                 url: getUrl(`/${id}`),
                 method: "DELETE",
             }),
-            invalidatesTags: [{ type: "Project", id: "LIST" }, "Project"],
+            invalidatesTags: [{ type: "Project", id: "LIST" }, "Project", "Knowledge"],
         }),
 
         getProjectHistory: builder.query<ProjectHistoryEntryDto[], string>({
@@ -232,6 +257,8 @@ export const projectsApi = api.injectEndpoints({
 export const {
     useGetProjectsQuery,
     useGetProjectByIdQuery,
+    useCreateProjectTagMutation,
+    useDeleteProjectTagMutation,
     useGetProjectTaskStatusColumnsQuery,
     useCreateProjectTaskStatusColumnMutation,
     useReorderProjectTaskStatusColumnsMutation,

@@ -1,3 +1,5 @@
+import type { ProjectTagDto } from "./ProjectTagDto";
+
 export interface ProjectDetailedDto {
     id: string;
     key: string;
@@ -51,8 +53,8 @@ export interface ProjectDetailedDto {
     overdueTasksCount?: number;
     highPriorityTasksCount?: number;
 
-    // Дополнительные поля (часто полезны в корпоративных системах)
-    tags?: string[];               // ["frontend", "mobile", "urgent", "clientX"]
+    // Теги проекта (для задач внутри проекта)
+    tags?: ProjectTagDto[];
     category?: string;             // "internal", "client", "product", "research"
     department?: string;           // "IT", "Marketing", "HR" и т.д.
     departmentId?: string;

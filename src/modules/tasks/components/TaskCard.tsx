@@ -3,15 +3,18 @@ import {TaskShortDto} from "@/types/dto/tasks/TaskShortDto";
 import {Card, CardContent} from "@/shared/ui_shadcn/card";
 import {useSortable} from "@dnd-kit/sortable";
 import {CSS} from "@dnd-kit/utilities";
-import {Calendar, AlertCircle, CheckCircle2} from "lucide-react";
+import {Calendar, AlertCircle, CheckCircle2, ExternalLink} from "lucide-react";
 import {Button} from "@/shared/ui_shadcn/button";
 import {format, parseISO, isPast} from "date-fns";
 import {ru} from "date-fns/locale";
-import {cn} from "@/shared/lib/ui_shadcn/utils";
+import { cn } from "@/shared/lib/ui_shadcn/utils";
+import { isMeaningfulIsoDate } from "@/shared/lib/dates/meaningfulDate";
 import {useNavigate} from "react-router-dom";
 import {AppRoutes} from "@/app/routes/AppRoutes";
 import {ProjectTaskPriority} from "@/types/dto/enums/ProjectTaskPriority";
 import {UserAvatar} from "@/shared/ui/UserAvatar";
+import {Badge} from "@/shared/ui_shadcn/badge";
+import {isSystemSeededAdminDisplayName} from "@/shared/lib/users/systemSeededAdminDisplay";
 
 export const DND_TASK_ID_PREFIX = "task:";
 
@@ -34,7 +37,7 @@ type ContentProps = {
 function TaskCardContent({task, projectId, overlayStyle, doneColumnId, onCloseTask, canMutate = true}: ContentProps) {
     const navigate = useNavigate();
     const due = task.deadline;
-    const isOverdue = due && isPast(parseISO(due));
+    const isOverdue = isMeaningfulIsoDate(due) && isPast(parseISO(due));
 
     const openTask = () => {
         navigate(`${AppRoutes.TASKS}/${projectId}/detail/${task.id}`);
@@ -64,6 +67,21 @@ function TaskCardContent({task, projectId, overlayStyle, doneColumnId, onCloseTa
                     <div className="font-medium line-clamp-2">{task.title}</div>
                 </div>
 
+                {(task.tags?.length ?? 0) > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                        {(task.tags ?? []).slice(0, 3).map((t) => (
+                            <Badge key={t.id} variant="outline" className="text-[10px] font-normal px-1.5 py-0">
+                                {t.name}
+                            </Badge>
+                        ))}
+                        {(task.tags?.length ?? 0) > 3 ? (
+                            <span className="text-[10px] text-muted-foreground self-center">
+                                +{(task.tags!.length - 3)}
+                            </span>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 <div className="flex items-center justify-between text-xs sm:text-sm gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                         <span className="text-muted-foreground font-mono truncate">{task.key}</span>
@@ -77,6 +95,22 @@ function TaskCardContent({task, projectId, overlayStyle, doneColumnId, onCloseTa
                         </span>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-primary md:hidden"
+                            aria-label="Открыть задачу"
+                            title="Открыть задачу"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                openTask();
+                            }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                        >
+                            <ExternalLink className="h-4 w-4" />
+                        </Button>
                         {canMutate && doneColumnId && onCloseTask && !task.status.isDoneColumn && (
                             <Button
                                 type="button"
@@ -95,18 +129,18 @@ function TaskCardContent({task, projectId, overlayStyle, doneColumnId, onCloseTa
                                 <CheckCircle2 className="h-4 w-4"/>
                             </Button>
                         )}
-                        {task.assignee && (
+                        {task.assignee && !isSystemSeededAdminDisplayName(task.assignee.name) && (
                             <UserAvatar size='s' userId={task.assignee.id}
                                         hasAvatar={task.assignee.hasAvatar ?? false}/>
                         )}
                     </div>
                 </div>
 
-                {due && (
+                {isMeaningfulIsoDate(due) && (
                     <div className="flex items-center gap-1.5 text-[11px] sm:text-xs">
                         <Calendar className="h-3.5 w-3.5 shrink-0"/>
                         <span className={cn(isOverdue && "text-destructive")}>
-                            {format(parseISO(due), "d MMM", {locale: ru})}
+                            {format(parseISO(due!), "d MMM", {locale: ru})}
                         </span>
                         {isOverdue && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0"/>}
                     </div>

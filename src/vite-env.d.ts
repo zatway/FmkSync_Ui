@@ -17,6 +17,7 @@ export type Env = {
     PROJECTS_HISTORY_SUFFIX: string;
     PROJECTS_COMMENTS_SUFFIX: string;
     PROJECT_COMMENT_BY_ID_PREFIX: string;
+    PROJECT_TAGS: string;
 
     PROFILE_ME_SUFFIX: string;
     PROFILE_ME_AVATAR_SUFFIX: string;

@@ -30,6 +30,7 @@ import {
 import { Checkbox } from "@/shared/ui_shadcn/checkbox";
 import { ProjectTaskPriority } from "@/types/dto/enums/ProjectTaskPriority";
 import type { TaskStatusColumnDto } from "@/types/dto/tasks/TaskStatusColumnDto";
+import type { ProjectTagDto } from "@/types/dto/projects/ProjectTagDto";
 
 export const TASK_PRIORITY_LABELS: Record<ProjectTaskPriority, string> = {
     [ProjectTaskPriority.Low]: "Низкий",
@@ -47,6 +48,7 @@ const schema = z.object({
     responsibleId: z.string().optional().nullable(),
     deadline: z.string().optional().nullable(),
     watcherIds: z.array(z.string()).optional(),
+    tagIds: z.array(z.string().uuid()).optional(),
 });
 
 export type TaskFormValues = z.infer<typeof schema>;
@@ -60,6 +62,8 @@ interface TaskFormProps {
     statusColumns: TaskStatusColumnDto[];
     defaultValues?: Partial<TaskFormValues>;
     members: MemberOption[];
+    /** Теги проекта (выбор нескольких на задаче) */
+    projectTags?: ProjectTagDto[];
     submitLabel: string;
     onSubmit: (values: TaskFormValues) => Promise<void>;
     isLoading?: boolean;
@@ -69,6 +73,7 @@ export function TaskForm({
     statusColumns,
     defaultValues,
     members,
+    projectTags = [],
     submitLabel,
     onSubmit,
     isLoading,
@@ -89,6 +94,7 @@ export function TaskForm({
             responsibleId: null,
             deadline: "",
             watcherIds: [],
+            tagIds: [],
             ...defaultValues,
         },
     });
@@ -296,6 +302,38 @@ export function TaskForm({
                         </FormItem>
                     )}
                 />
+
+                {projectTags.length > 0 ? (
+                    <FormField
+                        control={form.control}
+                        name="tagIds"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Теги</FormLabel>
+                                <div className="space-y-2 border rounded-md p-3 max-h-48 overflow-y-auto">
+                                    {projectTags.map((t) => (
+                                        <div key={t.id} className="flex items-center gap-2">
+                                            <Checkbox
+                                                id={`tag-${t.id}`}
+                                                checked={field.value?.includes(t.id)}
+                                                onCheckedChange={(checked) => {
+                                                    const next = new Set(field.value ?? []);
+                                                    if (checked) next.add(t.id);
+                                                    else next.delete(t.id);
+                                                    field.onChange([...next]);
+                                                }}
+                                            />
+                                            <label htmlFor={`tag-${t.id}`} className="text-sm font-normal">
+                                                {t.name}
+                                            </label>
+                                        </div>
+                                    ))}
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                ) : null}
 
                 <FormField
                     control={form.control}

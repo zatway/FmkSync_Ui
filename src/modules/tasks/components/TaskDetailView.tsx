@@ -1,4 +1,4 @@
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
     useGetTaskByIdQuery,
     useDeleteTaskMutation,
@@ -10,9 +10,11 @@ import {
 } from "@/modules/tasks/api/tasksApi";
 import { useGetProjectByIdQuery, useGetProjectTaskStatusColumnsQuery } from "@/modules/projects/api/projectsApi";
 import { AppRoutes } from "@/app/routes/AppRoutes";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui_shadcn/tabs";
+import { isMeaningfulIsoDate } from "@/shared/lib/dates/meaningfulDate";
 import { Button } from "@/shared/ui_shadcn/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui_shadcn/dialog";
-import { ArrowLeft, BookOpen, CheckCircle2, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/shared/ui_shadcn/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui_shadcn/card";
 import { Textarea } from "@/shared/ui_shadcn/textarea";
@@ -30,6 +32,7 @@ import { TaskCommentItem } from "@/modules/tasks/components/TaskCommentItem";
 import { UserAvatar } from "@/shared/ui/UserAvatar";
 import type { TaskStatusColumnDto } from "@/types/dto/tasks/TaskStatusColumnDto";
 import { resolveDoneColumnId } from "@/modules/tasks/lib/resolveDoneColumnId";
+import { isSystemSeededAdminDisplayName } from "@/shared/lib/users/systemSeededAdminDisplay";
 
 export function TaskDetailView() {
     const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>();
@@ -75,15 +78,14 @@ export function TaskDetailView() {
         if (!project) return [];
         const seen = new Set<string>();
         const out: { id: string; name: string }[] = [];
-        if (project.owner) {
+        if (project.owner && !isSystemSeededAdminDisplayName(project.owner.name)) {
             out.push({ id: project.owner.id, name: project.owner.name });
             seen.add(project.owner.id);
         }
         for (const m of project.members ?? []) {
-            if (!seen.has(m.id)) {
-                out.push({ id: m.id, name: m.name });
-                seen.add(m.id);
-            }
+            if (seen.has(m.id) || isSystemSeededAdminDisplayName(m.name)) continue;
+            out.push({ id: m.id, name: m.name });
+            seen.add(m.id);
         }
         return out;
     }, [project]);
@@ -215,187 +217,249 @@ export function TaskDetailView() {
                     </Button>
                 ) : null}
             </div>
-            <div>
-                <p className="text-sm text-muted-foreground mb-1">{task.key}</p>
-                <h1 className="text-2xl sm:text-3xl font-bold break-words">{task.title}</h1>
-                <div className="flex flex-wrap items-center gap-2 mt-3">
+            <header className="space-y-3 border-b border-border/80 pb-5">
+                <p className="text-sm text-muted-foreground">{task.key}</p>
+                <h1 className="text-2xl font-bold break-words sm:text-3xl">{task.title}</h1>
+                <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">{task.status.name}</Badge>
                     <Badge variant="outline">{task.priority}</Badge>
-                    {task.creator ? (
-                        <Badge variant="outline" className="font-normal gap-1.5 py-1 pr-2.5">
+                    {task.creator && !isSystemSeededAdminDisplayName(task.creator.name) ? (
+                        <Badge variant="outline" className="gap-1.5 py-1 pr-2.5 font-normal">
                             <UserAvatar
                                 size="s"
                                 userId={task.creator.id}
                                 name={task.creator.name}
                                 hasAvatar={task.creator.hasAvatar ?? false}
                             />
-                            <span>Автор: {task.creator.name}</span>
+                            <span className="max-w-[10rem] truncate sm:max-w-none">Автор: {task.creator.name}</span>
                         </Badge>
                     ) : (
                         <Badge variant="outline" className="font-normal">
                             Автор: —
                         </Badge>
                     )}
-                    {task.deadline && (
+                    {isMeaningfulIsoDate(task.deadline) ? (
                         <Badge variant="outline">
-                            Срок: {format(parseISO(task.deadline), "d MMMM yyyy", { locale: ru })}
+                            Срок: {format(parseISO(task.deadline!), "d MMMM yyyy", { locale: ru })}
                         </Badge>
-                    )}
+                    ) : null}
                 </div>
-                {task.watchers && task.watchers.length > 0 ? (
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className="shrink-0 text-sm text-muted-foreground">Наблюдатели:</span>
-                        <div className="flex flex-wrap items-center gap-2">
-                            {task.watchers.map((w) => (
-                                <span
-                                    key={w.id}
-                                    className="flex items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-sm"
-                                >
-                                    <UserAvatar size="s" userId={w.id} name={w.name} hasAvatar={w.hasAvatar ?? false} />
-                                    <span className="max-w-[12rem] truncate">{w.name}</span>
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                ) : null}
-            </div>
-            {task.description && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">Описание</CardTitle>
-                    </CardHeader>
-                    <CardContent className="whitespace-pre-wrap break-words">{task.description}</CardContent>
-                </Card>
-            )}
-            <Card>
-                <CardHeader className="pb-2">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <BookOpen className="h-5 w-5" />
-                        База знаний
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                    <p className="mb-3">Статьи по этой задаче (и по проекту целиком).</p>
-                    <Link
-                        to={`${AppRoutes.KNOWLEDGE}?projectId=${projectId}`}
-                        className="font-medium text-primary underline underline-offset-2 hover:no-underline"
-                    >
-                        Открыть статьи проекта
-                    </Link>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">Комментарии</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {canAddComments ? (
-                    <div className="space-y-2">
-                        {(replyTo || replyParentCommentId) && (
-                            <div className="text-xs text-muted-foreground">
-                                {replyTo && (
-                                    <>
-                                        Ответ пользователю: <span className="font-medium">{replyTo.authorName}</span>
-                                    </>
-                                )}
-                                {replyParentCommentId && (
-                                    <span className={replyTo ? " ml-2" : ""}> (ветка комментария)</span>
-                                )}
-                                <button
-                                    type="button"
-                                    className="underline ml-2"
-                                    onClick={() => {
-                                        setReplyTo(null);
-                                        setReplyParentCommentId(null);
-                                    }}
-                                >
-                                    отменить
-                                </button>
-                            </div>
-                        )}
-                        {mentionMembers.length ? (
-                            <div className="flex flex-wrap gap-2">
-                                {mentionMembers.map((m) => (
-                                    <button
-                                        key={m.id}
-                                        type="button"
-                                        className="text-xs px-2 py-1 rounded-md border hover:bg-accent"
-                                        onClick={() => {
-                                            if (!mentionIds.includes(m.id)) setMentionIds([...mentionIds, m.id]);
-                                            setCommentText((prev) =>
-                                                prev.trim().length ? `${prev} @${m.name}` : `@${m.name}`,
-                                            );
-                                        }}
-                                    >
-                                        @{m.name}
-                                    </button>
-                                ))}
-                            </div>
-                        ) : null}
-                        <div className="flex flex-wrap items-center gap-2">
-                            <FilePickerButton
-                                multiple
-                                disabled={addingComment || uploading}
-                                onFiles={(picked) => setFiles((prev) => [...prev, ...picked])}
-                                label="Прикрепить файлы"
-                            />
-                            {files.length > 0 && (
-                                <span className="text-xs text-muted-foreground break-all">
-                                    {files.map((f) => f.name).join(", ")}
-                                </span>
-                            )}
-                        </div>
-                        <Textarea
-                            placeholder="Новый комментарий…"
-                            value={commentText}
-                            onChange={(e) => setCommentText(e.target.value)}
-                            rows={3}
-                        />
-                        <Button onClick={handleAddComment} disabled={addingComment || uploading || !commentText.trim()}>
-                            Отправить
-                        </Button>
-                    </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">Комментирование недоступно в режиме только просмотра.</p>
-                    )}
-                    <div className="space-y-8">
-                        {task.comments.map((c) => (
-                            <TaskCommentItem
-                                key={c.id}
-                                comment={c}
-                                level={0}
-                                readOnly={!canAddComments}
-                                currentUserId={currentUserId}
-                                editingId={editingId}
-                                editContent={editContent}
-                                deletingComment={deletingComment}
-                                updatingComment={updatingComment}
-                                onReply={(comment) => {
-                                    setReplyParentCommentId(comment.id);
-                                    setReplyTo({ userId: comment.userId, authorName: comment.authorName });
-                                }}
-                                onStartEdit={startEdit}
-                                onSaveEdit={() => void saveEdit()}
-                                onEditContentChange={setEditContent}
-                                onRemove={(id) => {
-                                    setCommentIdToDelete(id);
-                                    setDeleteCommentDialogOpen(true);
-                                }}
-                            />
+                {(task.tags?.length ?? 0) > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                        {(task.tags ?? []).map((t) => (
+                            <Badge key={t.id} variant="secondary" className="font-normal">
+                                {t.name}
+                            </Badge>
                         ))}
                     </div>
+                ) : null}
+            </header>
+
+            <Card className="border-primary/15 shadow-sm">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-lg">Описание</CardTitle>
+                </CardHeader>
+                <CardContent className="text-base leading-relaxed">
+                    {task.description?.trim() ? (
+                        <p className="whitespace-pre-wrap break-words">{task.description}</p>
+                    ) : (
+                        <p className="text-muted-foreground">Описание не заполнено.</p>
+                    )}
                 </CardContent>
             </Card>
+
             <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">История</CardTitle>
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-semibold">Участники</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <TaskHistory history={task.history} />
+                <CardContent className="grid gap-4 sm:grid-cols-3">
+                    <div className="rounded-lg border bg-muted/30 p-3">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Ответственный
+                        </p>
+                        {task.responsible && !isSystemSeededAdminDisplayName(task.responsible.name) ? (
+                            <div className="flex items-center gap-2">
+                                <UserAvatar
+                                    size="md"
+                                    userId={task.responsible.id}
+                                    name={task.responsible.name}
+                                    hasAvatar={task.responsible.hasAvatar ?? false}
+                                />
+                                <span className="min-w-0 truncate text-sm font-medium">{task.responsible.name}</span>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">Не назначен</p>
+                        )}
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 p-3">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Исполнитель
+                        </p>
+                        {task.assignee && !isSystemSeededAdminDisplayName(task.assignee.name) ? (
+                            <div className="flex items-center gap-2">
+                                <UserAvatar
+                                    size="md"
+                                    userId={task.assignee.id}
+                                    name={task.assignee.name}
+                                    hasAvatar={task.assignee.hasAvatar ?? false}
+                                />
+                                <span className="min-w-0 truncate text-sm font-medium">{task.assignee.name}</span>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">Не назначен</p>
+                        )}
+                    </div>
+                    <div className="rounded-lg border bg-muted/30 p-3 sm:col-span-1">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                            Наблюдатели
+                        </p>
+                        {(() => {
+                            const vis = (task.watchers ?? []).filter(
+                                (w) => !isSystemSeededAdminDisplayName(w.name),
+                            );
+                            return vis.length > 0 ? (
+                                <ul className="flex flex-col gap-2">
+                                    {vis.map((w) => (
+                                        <li key={w.id} className="flex items-center gap-2">
+                                            <UserAvatar
+                                                size="s"
+                                                userId={w.id}
+                                                name={w.name}
+                                                hasAvatar={w.hasAvatar ?? false}
+                                            />
+                                            <span className="min-w-0 truncate text-sm">{w.name}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">Нет</p>
+                            );
+                        })()}
                     </div>
                 </CardContent>
             </Card>
+
+            <Tabs defaultValue="comments" className="flex flex-col w-full">
+                <TabsList variant="line" className="mb-4 w-full justify-start sm:w-auto">
+                    <TabsTrigger value="comments">Комментарии</TabsTrigger>
+                    <TabsTrigger value="history">История</TabsTrigger>
+                </TabsList>
+                <TabsContent value="comments" className="space-y-4">
+                    <Card>
+                        <CardContent className="space-y-4 pt-6">
+                            {canAddComments ? (
+                                <div className="space-y-2">
+                                    {(replyTo || replyParentCommentId) && (
+                                        <div className="text-xs text-muted-foreground">
+                                            {replyTo && (
+                                                <>
+                                                    Ответ пользователю:{" "}
+                                                    <span className="font-medium">{replyTo.authorName}</span>
+                                                </>
+                                            )}
+                                            {replyParentCommentId && (
+                                                <span className={replyTo ? " ml-2" : ""}> (ветка комментария)</span>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="ml-2 underline"
+                                                onClick={() => {
+                                                    setReplyTo(null);
+                                                    setReplyParentCommentId(null);
+                                                }}
+                                            >
+                                                отменить
+                                            </button>
+                                        </div>
+                                    )}
+                                    {mentionMembers.length ? (
+                                        <div className="flex flex-wrap gap-2">
+                                            {mentionMembers.map((m) => (
+                                                <button
+                                                    key={m.id}
+                                                    type="button"
+                                                    className="rounded-md border px-2 py-1 text-xs hover:bg-accent"
+                                                    onClick={() => {
+                                                        if (!mentionIds.includes(m.id))
+                                                            setMentionIds([...mentionIds, m.id]);
+                                                        setCommentText((prev) =>
+                                                            prev.trim().length ? `${prev} @${m.name}` : `@${m.name}`,
+                                                        );
+                                                    }}
+                                                >
+                                                    @{m.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <FilePickerButton
+                                            multiple
+                                            disabled={addingComment || uploading}
+                                            onFiles={(picked) => setFiles((prev) => [...prev, ...picked])}
+                                            label="Прикрепить файлы"
+                                        />
+                                        {files.length > 0 && (
+                                            <span className="break-all text-xs text-muted-foreground">
+                                                {files.map((f) => f.name).join(", ")}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <Textarea
+                                        placeholder="Новый комментарий…"
+                                        value={commentText}
+                                        onChange={(e) => setCommentText(e.target.value)}
+                                        rows={3}
+                                    />
+                                    <Button
+                                        onClick={handleAddComment}
+                                        disabled={addingComment || uploading || !commentText.trim()}
+                                    >
+                                        Отправить
+                                    </Button>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    Комментирование недоступно в режиме только просмотра.
+                                </p>
+                            )}
+                            <div className="space-y-8">
+                                {task.comments.map((c) => (
+                                    <TaskCommentItem
+                                        key={c.id}
+                                        comment={c}
+                                        level={0}
+                                        readOnly={!canAddComments}
+                                        currentUserId={currentUserId}
+                                        editingId={editingId}
+                                        editContent={editContent}
+                                        deletingComment={deletingComment}
+                                        updatingComment={updatingComment}
+                                        onReply={(comment) => {
+                                            setReplyParentCommentId(comment.id);
+                                            setReplyTo({ userId: comment.userId, authorName: comment.authorName });
+                                        }}
+                                        onStartEdit={startEdit}
+                                        onSaveEdit={() => void saveEdit()}
+                                        onEditContentChange={setEditContent}
+                                        onRemove={(id) => {
+                                            setCommentIdToDelete(id);
+                                            setDeleteCommentDialogOpen(true);
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+                <TabsContent value="history">
+                    <Card>
+                        <CardContent className="pt-6">
+                            <TaskHistory history={task.history} />
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
             <Dialog open={deleteTaskDialogOpen} onOpenChange={setDeleteTaskDialogOpen}>
                 <DialogContent>
                     <DialogHeader>

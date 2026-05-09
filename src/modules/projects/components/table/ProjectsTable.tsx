@@ -11,7 +11,7 @@ import {
 } from "@tanstack/react-table";
 import { format, parseISO } from "date-fns";
 import { ru } from "date-fns/locale";
-import { ArrowUpDown, Edit, Trash2, FolderKanban } from "lucide-react";
+import { ArrowUpDown, Edit, Trash2, FolderKanban, ArchiveRestore } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -25,15 +25,38 @@ import { UserAvatar } from "@/shared/ui/UserAvatar";
 import { Progress } from "@/shared/ui_shadcn/progress";
 import { Label } from "@/shared/ui_shadcn/label";
 import { Checkbox } from "@/shared/ui_shadcn/checkbox";
-import {useDeleteProjectMutation, useGetProjectsQuery} from "@/modules/projects/api/projectsApi";
+import {
+    useDeleteProjectMutation,
+    useGetProjectsQuery,
+    useUpdateProjectMutation,
+} from "@/modules/projects/api/projectsApi";
 import { ProjectBriefDto } from "@/types/dto/projects/ProjectBriefDto";
 import { useNavigate } from "react-router-dom";
 import { AppRoutes } from "@/app/routes/AppRoutes";
+import { Badge } from "@/shared/ui_shadcn/badge";
+import { isMeaningfulIsoDate } from "@/shared/lib/dates/meaningfulDate";
+import { toast } from "sonner";
+import { getApiErrorMessage } from "@/shared/lib";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/shared/ui_shadcn/dialog";
+import { PROJECT_DELETE_DETAIL_LINES } from "@/modules/projects/lib/projectDeleteConfirm";
 
 export function ProjectsTable() {
-    const [showArchived, setShowArchived] = useState(false);
-    const { data: projects, isLoading } = useGetProjectsQuery(showArchived ? { includeArchived: true } : {});
-    const [deleteProject] = useDeleteProjectMutation();
+    const [projectToDelete, setProjectToDelete] = useState<ProjectBriefDto | null>(null);
+    const [hideArchived, setHideArchived] = useState(false);
+    const { data: projects, isLoading } = useGetProjectsQuery({ includeArchived: true });
+    const visibleProjects = useMemo(
+        () => (hideArchived ? (projects ?? []).filter((p) => !p.isArchived) : projects ?? []),
+        [projects, hideArchived],
+    );
+    const [deleteProject, { isLoading: deletingProject }] = useDeleteProjectMutation();
+    const [updateProject] = useUpdateProjectMutation();
     const navigate = useNavigate();
 
     const columns = useMemo<ColumnDef<ProjectBriefDto>[]>(
@@ -57,8 +80,15 @@ export function ProjectsTable() {
                         >
                             {row.original.icon || "📁"}
                         </div>
-                        <div>
-                            <div className="font-medium">{row.original.name}</div>
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium">{row.original.name}</span>
+                                {row.original.isArchived ? (
+                                    <Badge variant="secondary" className="text-[10px] font-normal">
+                                        Архив
+                                    </Badge>
+                                ) : null}
+                            </div>
                             <div className="text-xs text-muted-foreground">{row.original.key}</div>
                         </div>
                     </div>
@@ -115,10 +145,10 @@ export function ProjectsTable() {
                 accessorKey: "dueDate",
                 header: "Срок",
                 cell: ({ row }) =>
-                    row.original.dueDate ? (
+                    isMeaningfulIsoDate(row.original.dueDate) ? (
                         <span className="text-sm">
-              {format(parseISO(row.original.dueDate), "d MMM yyyy", { locale: ru })}
-            </span>
+                            {format(parseISO(row.original.dueDate!), "d MMM yyyy", { locale: ru })}
+                        </span>
                     ) : (
                         "—"
                     ),
@@ -133,6 +163,7 @@ export function ProjectsTable() {
                             <Button
                                 variant="ghost"
                                 size="icon"
+                                title="Карточка"
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     navigate(`${AppRoutes.PROJECTS}/${project.id}`);
@@ -143,20 +174,42 @@ export function ProjectsTable() {
                             <Button
                                 variant="ghost"
                                 size="icon"
+                                title="Редактировать"
                                 onClick={(event) => {
                                     event.stopPropagation();
-                                    navigate(`${AppRoutes.PROJECTS}/${project.id}/edit`)
+                                    navigate(`${AppRoutes.PROJECTS}/${project.id}/edit`);
                                 }}
                             >
                                 <Edit className="h-4 w-4" />
                             </Button>
+                            {project.isArchived ? (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    title="Вернуть из архива"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        void (async () => {
+                                            try {
+                                                await updateProject({ id: project.id, isArchived: false }).unwrap();
+                                                toast.success("Проект снова в работе");
+                                            } catch (e) {
+                                                toast.error(getApiErrorMessage(e));
+                                            }
+                                        })();
+                                    }}
+                                >
+                                    <ArchiveRestore className="h-4 w-4" />
+                                </Button>
+                            ) : null}
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 className="text-destructive"
+                                title="Удалить"
                                 onClick={(event) => {
                                     event.stopPropagation();
-                                    deleteProject(project.id);
+                                    setProjectToDelete(project);
                                 }}
                             >
                                 <Trash2 className="h-4 w-4" />
@@ -166,11 +219,11 @@ export function ProjectsTable() {
                 },
             },
         ],
-        [navigate, deleteProject]
+        [navigate, updateProject]
     );
 
     const table = useReactTable({
-        data: projects ?? [],
+        data: visibleProjects,
         columns,
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
@@ -194,16 +247,48 @@ export function ProjectsTable() {
         );
     }
 
+    if (!visibleProjects.length) {
+        return (
+            <>
+                <div className="mb-4 flex items-center gap-2 px-2">
+                    <Checkbox
+                        id="hide-archived-projects-empty"
+                        checked={hideArchived}
+                        onCheckedChange={(v) => setHideArchived(v === true)}
+                    />
+                    <Label htmlFor="hide-archived-projects-empty" className="cursor-pointer text-sm font-normal">
+                        Скрыть архивные проекты
+                    </Label>
+                </div>
+                <div className="p-12 text-center text-muted-foreground">
+                    <p className="text-lg mb-2">Все проекты скрыты фильтром</p>
+                    <p className="text-sm">Снимите «Скрыть архивные», чтобы снова видеть архивные карточки в таблице.</p>
+                </div>
+            </>
+        );
+    }
+
+    const confirmDeleteProject = async () => {
+        if (!projectToDelete) return;
+        try {
+            await deleteProject(projectToDelete.id).unwrap();
+            toast.success("Проект удалён");
+            setProjectToDelete(null);
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
+        }
+    };
+
     return (
         <>
             <div className="mb-4 flex items-center gap-2 px-2">
                 <Checkbox
-                    id="show-archived-projects"
-                    checked={showArchived}
-                    onCheckedChange={(v) => setShowArchived(v === true)}
+                    id="hide-archived-projects"
+                    checked={hideArchived}
+                    onCheckedChange={(v) => setHideArchived(v === true)}
                 />
-                <Label htmlFor="show-archived-projects" className="text-sm font-normal cursor-pointer">
-                    Показать архивные проекты
+                <Label htmlFor="hide-archived-projects" className="cursor-pointer text-sm font-normal">
+                    Скрыть архивные проекты
                 </Label>
             </div>
             <div className="overflow-x-auto">
@@ -246,6 +331,39 @@ export function ProjectsTable() {
                 </TableBody>
             </Table>
             </div>
+
+            <Dialog open={projectToDelete !== null} onOpenChange={(open) => !open && setProjectToDelete(null)}>
+                <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+                    <DialogHeader>
+                        <DialogTitle>
+                            Удалить проект «{projectToDelete?.name ?? ""}»?
+                        </DialogTitle>
+                        <DialogDescription asChild>
+                            <div className="space-y-2 pt-1 text-sm text-muted-foreground">
+                                <p>Это действие нельзя отменить.</p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                    {PROJECT_DELETE_DETAIL_LINES.map((line) => (
+                                        <li key={line}>{line}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button type="button" variant="outline" onClick={() => setProjectToDelete(null)}>
+                            Отмена
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={() => void confirmDeleteProject()}
+                            disabled={deletingProject}
+                        >
+                            {deletingProject ? "Удаление…" : "Удалить навсегда"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }

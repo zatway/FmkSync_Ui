@@ -1,26 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ProjectEditHeader, ProjectForm } from "@/modules/projects";
 import { useParams } from "react-router-dom";
 import { useGetProjectByIdQuery, useUpdateProjectMutation } from "@/modules/projects/api/projectsApi";
 import { toast } from "sonner";
 import { getApiErrorMessage } from "@/shared/lib";
-import {UpdateProjectRequest} from "@/types/dto/projects/UpdateProjectRequest";
-import { Checkbox } from "@/shared/ui_shadcn/checkbox";
-import { Label } from "@/shared/ui_shadcn/label";
-import { Button } from "@/shared/ui_shadcn/button";
+import { UpdateProjectRequest } from "@/types/dto/projects/UpdateProjectRequest";
 
 export default function ProjectEditPage() {
     const { projectId } = useParams<{ projectId: string }>();
 
     const { data: project, isLoading } = useGetProjectByIdQuery(projectId!);
     const [updateProject, { isLoading: isUpdating }] = useUpdateProjectMutation();
-    const [archived, setArchived] = useState(false);
-
-    useEffect(() => {
-        if (project) setArchived(!!project.isArchived);
-    }, [project?.id, project?.isArchived]);
 
     if (isLoading) {
         return <div className="p-10 text-center">Загрузка...</div>;
@@ -59,7 +50,7 @@ export default function ProjectEditPage() {
                         dueDate: project.dueDate ? new Date(project.dueDate) : undefined,
                         color: project.color,
                         icon: project.icon,
-                        tags: project.tags || [],
+                        tags: (project.tags ?? []).map((t) => t.name),
                         departmentId: project.departmentId ?? "",
                     }}
                     onSubmit={value => handleSubmit({
@@ -71,37 +62,9 @@ export default function ProjectEditPage() {
                         color: value.color,
                         icon: value.icon,
                         tags: value.tags,
-                        isArchived: archived,
                         departmentId: value.departmentId,
                     })}
                 />
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4">
-                <Checkbox
-                    id="project-archived"
-                    checked={archived}
-                    onCheckedChange={(v) => setArchived(v === true)}
-                />
-                <Label htmlFor="project-archived" className="cursor-pointer font-normal">
-                    Проект в архиве (скрыт из списка по умолчанию)
-                </Label>
-                <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    disabled={isUpdating}
-                    onClick={async () => {
-                        try {
-                            await updateProject({ id: projectId!, isArchived: archived }).unwrap();
-                            toast.success("Статус архива сохранён");
-                        } catch (err) {
-                            toast.error(getApiErrorMessage(err));
-                        }
-                    }}
-                >
-                    Сохранить архив
-                </Button>
             </div>
         </div>
     );

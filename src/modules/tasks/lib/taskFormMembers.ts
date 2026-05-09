@@ -1,6 +1,7 @@
 import type { ProjectDetailedDto } from '@/types/dto/projects/ProjectDetailedDto'
 import type { TaskDetailedDto } from '@/types/dto/tasks/TaskDetailedDto'
 import type { TaskShortDto } from '@/types/dto/tasks/TaskShortDto'
+import { isSystemSeededAdminDisplayName } from '@/shared/lib/users/systemSeededAdminDisplay'
 
 type IdName = { id?: string; Id?: string; name?: string; Name?: string }
 
@@ -15,7 +16,7 @@ function membersFromProjectDto(project: ProjectDetailedDto | undefined): { id: s
     for (const m of raw as IdName[]) {
         const id = m.id ?? m.Id
         const name = m.name ?? m.Name
-        if (id && name?.trim()) out.push({ id, name: name.trim() })
+        if (id && name?.trim() && !isSystemSeededAdminDisplayName(name)) out.push({ id, name: name.trim() })
     }
     return out
 }
@@ -30,6 +31,7 @@ export function mergeTaskFormMemberOptions(
     const seen = new Set<string>()
     const push = (id: string | undefined | null, name: string | undefined | null) => {
         if (!id || !name?.trim()) return
+        if (isSystemSeededAdminDisplayName(name)) return
         if (seen.has(id)) return
         seen.add(id)
         out.push({ id, name: name.trim() })

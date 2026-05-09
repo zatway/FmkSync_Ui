@@ -15,6 +15,8 @@ import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { getApiErrorMessage } from '@/shared/lib'
 import { format, parseISO } from 'date-fns'
+import { isMeaningfulIsoDate } from '@/shared/lib/dates/meaningfulDate'
+import { isSystemSeededAdminDisplayName } from '@/shared/lib/users/systemSeededAdminDisplay'
 
 export default function TaskEditPage() {
     const { projectId, taskId } = useParams<{ projectId: string; taskId: string }>()
@@ -44,6 +46,7 @@ export default function TaskEditPage() {
                 deadline,
                 responsibleId: values.responsibleId,
                 watcherUserIds: values.watcherIds ?? [],
+                tagIds: values.tagIds ?? [],
             }).unwrap()
             const prevAssignee = task?.assignee?.id ?? null
             const nextAssignee = values.assigneeId ?? null
@@ -56,7 +59,8 @@ export default function TaskEditPage() {
     }
 
     if (!projectId || !taskId) return null
-    const deadlineStr = task?.deadline ? format(parseISO(task.deadline), 'yyyy-MM-dd') : ''
+    const deadlineStr =
+        task?.deadline && isMeaningfulIsoDate(task.deadline) ? format(parseISO(task.deadline), 'yyyy-MM-dd') : ''
 
     return (
         <div className="container mx-auto w-full min-w-0 max-w-3xl px-3 py-6 sm:px-4 sm:py-8">
@@ -68,6 +72,7 @@ export default function TaskEditPage() {
                     key={task.id}
                     statusColumns={statusColumns}
                     members={members}
+                    projectTags={project?.tags ?? []}
                     submitLabel='Сохранить'
                     onSubmit={onSubmit}
                     isLoading={isLoading}
@@ -76,10 +81,19 @@ export default function TaskEditPage() {
                         description: task.description ?? '',
                         projectTaskStatusColumnId: task.status.id,
                         priority: task.priority,
-                        assigneeId: task.assignee?.id ?? null,
-                        responsibleId: task.responsible?.id ?? null,
+                        assigneeId:
+                            task.assignee && !isSystemSeededAdminDisplayName(task.assignee.name)
+                                ? task.assignee.id
+                                : null,
+                        responsibleId:
+                            task.responsible && !isSystemSeededAdminDisplayName(task.responsible.name)
+                                ? task.responsible.id
+                                : null,
                         deadline: deadlineStr,
-                        watcherIds: task.watchers.map((w) => w.id),
+                        watcherIds: task.watchers
+                            .filter((w) => !isSystemSeededAdminDisplayName(w.name))
+                            .map((w) => w.id),
+                        tagIds: (task.tags ?? []).map((t) => t.id),
                     }}
                 />
             )}

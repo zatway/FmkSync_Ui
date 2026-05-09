@@ -12,4 +12,5 @@ export interface UpdateTaskRequest {
     responsibleId?: string | null;
     sortOrder?: number | null;
     watcherUserIds?: string[] | null;
+    tagIds?: string[] | null;
 }

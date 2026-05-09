@@ -63,13 +63,20 @@ function TreeRow({
                                     slug: item.slug,
                                 }) + searchSuffix
                             }
-                            className={`block flex-1 truncate rounded px-1.5 py-1 text-sm transition-colors hover:bg-accent ${
+                            className={`block min-w-0 flex-1 rounded px-1.5 py-1 text-sm transition-colors hover:bg-accent ${
                                 currentSlug === item.slug
                                     ? "bg-accent font-medium text-foreground"
                                     : "text-foreground/90"
                             }`}
                         >
-                            {item.title}
+                            <span className="flex min-w-0 items-baseline gap-1.5">
+                                <span className="truncate">{item.title}</span>
+                                {item.projectName ? (
+                                    <span className="shrink-0 truncate text-[11px] font-normal text-muted-foreground">
+                                        · {item.projectName}
+                                    </span>
+                                ) : null}
+                            </span>
                         </Link>
                         {canEdit && (
                             <button

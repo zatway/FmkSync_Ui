@@ -10,4 +10,5 @@ export interface CreateTaskRequest {
     responsibleId?: string | null;
     deadline?: string | null;
     watcherUserIds?: string[] | null;
+    tagIds?: string[] | null;
 }

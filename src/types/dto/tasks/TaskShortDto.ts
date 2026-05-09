@@ -1,4 +1,5 @@
 import type { ProjectTaskPriority } from "../enums/ProjectTaskPriority";
+import type { ProjectTagDto } from "../projects/ProjectTagDto";
 import type { TaskStatusColumnDto } from "./TaskStatusColumnDto";
 
 export interface TaskAssigneeDto {
@@ -24,4 +25,5 @@ export interface TaskShortDto {
     sortOrder: number;
     assignee?: TaskAssigneeDto | null;
     responsible?: TaskAssigneeDto | null;
+    tags?: ProjectTagDto[];
 }

@@ -16,6 +16,7 @@ export const env: Env = {
     PROJECTS_HISTORY_SUFFIX: "/history",
     PROJECTS_COMMENTS_SUFFIX: "/comments",
     PROJECT_COMMENT_BY_ID_PREFIX: "/comments",
+    PROJECT_TAGS: "/tags",
 
     PROFILE_ME_SUFFIX: "/me",
     PROFILE_ME_AVATAR_SUFFIX: "/me/avatar",

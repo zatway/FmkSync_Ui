@@ -4,12 +4,14 @@ import { ProjectDetailedDto } from "@/types/dto/projects/ProjectDetailedDto";
 import {format} from "date-fns";
 import {cn} from "@/shared/lib/ui_shadcn/utils";
 import { ru } from "date-fns/locale";
+import { isSystemSeededAdminDisplayName } from "@/shared/lib/users/systemSeededAdminDisplay";
 
 interface Props {
     project: ProjectDetailedDto;
 }
 
 export function ProjectOverview({ project }: Props) {
+    const memberCount = (project.members ?? []).filter((m) => !isSystemSeededAdminDisplayName(m.name)).length;
     return (
         <div className="space-y-8">
             {project.description && (
@@ -48,7 +50,7 @@ export function ProjectOverview({ project }: Props) {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                         <StatItem title="Всего задач" value={project.taskStats?.total || 0} />
                         <StatItem title="Открыта" value={project.taskStats?.open || 0} color="text-amber-600" />
-                        <StatItem title="Участники" value={project.members?.length || 0} />
+                        <StatItem title="Участники" value={memberCount} />
                         <StatItem
                             title="Последняя активность"
                             value={

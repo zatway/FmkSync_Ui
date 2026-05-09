@@ -48,6 +48,7 @@ export const tasksApi = api.injectEndpoints({
                     responsibleId: body.responsibleId ?? null,
                     deadline: body.deadline ?? null,
                     watcherUserIds: body.watcherUserIds ?? null,
+                    tagIds: body.tagIds?.length ? body.tagIds : null,
                 },
             }),
             invalidatesTags: (_, __, { projectId }) => [
@@ -72,6 +73,7 @@ export const tasksApi = api.injectEndpoints({
                     responsibleId: body.responsibleId ?? null,
                     sortOrder: body.sortOrder ?? null,
                     watcherUserIds: body.watcherUserIds ?? null,
+                    tagIds: body.tagIds !== undefined ? body.tagIds : null,
                 },
             }),
             invalidatesTags: (_, __, { id, projectId }) => [

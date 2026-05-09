@@ -38,6 +38,7 @@ export default function TaskCreatePage() {
                 responsibleId: values.responsibleId,
                 deadline,
                 watcherUserIds: values.watcherIds?.length ? values.watcherIds : null,
+                tagIds: values.tagIds?.length ? values.tagIds : null,
             }).unwrap()
             toast.success('Задача создана')
             navigate(`${AppRoutes.TASKS}/${projectId}/detail/${id}`)
@@ -60,6 +61,7 @@ export default function TaskCreatePage() {
                 <TaskForm
                     statusColumns={statusColumns}
                     members={members}
+                    projectTags={project.tags ?? []}
                     submitLabel='Создать задачу'
                     onSubmit={onSubmit}
                     isLoading={isLoading}

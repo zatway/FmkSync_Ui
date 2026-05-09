@@ -38,7 +38,7 @@ const projectCreateSchema = z.object({
         .string()
         .min(2, "Минимум 2 символа")
         .max(10, "Максимум 10 символов")
-        .regex(/^[A-Z0-9_-]+$/, "Только заглавные буквы, цифры, _ и -"),
+        .regex(/^[A-Z0-9_-]+$/, "Только латинские буквы, цифры, _ и -"),
     description: z.string().max(2000, "Описание слишком длинное").optional(),
     startDate: z.date().optional(),
     dueDate: z.date().optional(),
@@ -350,6 +350,7 @@ const ProjectForm: FC<ProjectFormProps> = ({
                                         <DepartmentSelect
                                             selectedDepartmentId={field.value?.toString()}
                                             onChange={field.onChange}
+                                            hiddenNames={isEdit ? [] : ["Admin"]}
                                         />
                                     </FormControl>
                                     <FormMessage/>

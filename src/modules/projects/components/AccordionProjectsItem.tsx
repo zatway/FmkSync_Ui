@@ -3,7 +3,7 @@ import { cn } from "@/shared/lib/ui_shadcn/utils";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/shared/ui_shadcn/accordion";
 import { FolderKanban, GitPullRequestCreate } from "lucide-react";
 import { useGetProjectsQuery } from "@/modules/projects/api/projectsApi";
-import { FC, useEffect, useMemo, useState } from "react";
+import { FC, useMemo, useState } from "react";
 import { AppRoutes } from "@/app/routes/AppRoutes";
 import ProjectItem from "@/modules/projects/components/ProjectItem";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/shared/ui_shadcn/dropdown-menu";
@@ -56,10 +56,6 @@ const AccordionProjectsItem: FC<AccordionProjectsItemProps> = ({ collapsed, onNa
         () => location.pathname === AppRoutes.PROJECTS || location.pathname.startsWith(`${AppRoutes.PROJECTS}/`),
         [location.pathname],
     );
-
-    useEffect(() => {
-        console.log(projects?.length)
-    }, [projects])
 
     const closeProjectsMenu = () => setProjectsMenuOpen(false);
     const handleItemNavigate = () => {
