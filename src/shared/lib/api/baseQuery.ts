@@ -41,10 +41,11 @@ type AxiosBaseQueryArgs = {
     responseType?: AxiosRequestConfig['responseType']
 }
 
-type AxiosBaseQueryError = {
+export type AxiosBaseQueryError = {
     status?: number
-    data: unknown
-}
+    data:
+        | { detail?: string; }
+}// объект с detail
 
 export const axiosBaseQuery =
     (): BaseQueryFn<AxiosBaseQueryArgs, unknown, AxiosBaseQueryError> =>

@@ -15,7 +15,6 @@ import {
     FormMessage,
 } from "@/shared/ui_shadcn/form";
 import {Input} from "@/shared/ui_shadcn/input";
-import {toast} from "sonner";
 import {getApiErrorMessage} from "@/shared/lib";
 
 const loginSchema = z.object({
@@ -44,8 +43,8 @@ const LoginForm = () => {
                 password: values.password,
             }).unwrap();
             navigate(AppRoutes.PROJECTS);
-        } catch (e) {
-            toast.error(getApiErrorMessage(e, {authContext: true}));
+        } catch {
+            /* сообщение об ошибке — из RTK `error` ниже */
         }
     };
 
@@ -107,12 +106,9 @@ const LoginForm = () => {
                     >
                         Нет аккаунта? Создать
                     </button>
-                    {error != null &&
-                    typeof error === "object" &&
-                    "status" in error &&
-                    (error as { status: number }).status === 401 ? (
+                    {error ? (
                         <p className="rounded-md p-2 text-center text-sm text-destructive">
-                            Неверная почта или пароль
+                            {getApiErrorMessage(error)}
                         </p>
                     ) : null}
                 </form>

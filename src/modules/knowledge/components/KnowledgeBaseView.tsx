@@ -321,7 +321,7 @@ export function KnowledgeBaseView() {
                                     {effectiveArticle.attachments && effectiveArticle.attachments.length > 0 && (
                                         <div className="flex flex-col gap-1">
                                             {effectiveArticle.attachments.map((a) => (
-                                                <CommentAttachmentLink key={a.id} attachment={a} />
+                                                <CommentAttachmentLink key={a.id} attachment={a} showDelete />
                                             ))}
                                         </div>
                                     )}
@@ -434,7 +434,7 @@ export function KnowledgeBaseView() {
                                         <div className="not-prose mb-4 flex flex-col gap-1">
                                             <p className="text-xs font-medium text-muted-foreground">Вложения</p>
                                             {article.attachments.map((a) => (
-                                                <CommentAttachmentLink key={a.id} attachment={a} />
+                                                <CommentAttachmentLink key={a.id} attachment={a} showDelete={canEdit} />
                                             ))}
                                         </div>
                                     )}

@@ -14,11 +14,10 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
-import { env } from "@/env";
 import { useGetAnalyticsDashboardQuery } from "@/modules/analytics/api/analyticsApi";
 import { useGetProjectsQuery } from "@/modules/projects/api/projectsApi";
 import { Button } from "@/shared/ui_shadcn/button";
-import { authLocalService, hasValue } from "@/shared/lib";
+import { authLocalService, getApiErrorMessage, hasValue } from "@/shared/lib";
 import { toast } from "sonner";
 import {
     Select,
@@ -28,6 +27,7 @@ import {
     SelectValue,
 } from "@/shared/ui_shadcn/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui_shadcn/tabs";
+import {axiosInstance} from "@/shared/lib/api/baseQuery";
 
 /** Без чистого чёрного — только мягкие насыщенные оттенки (светлая/тёмная тема через hsl) */
 const PALETTE = [
@@ -134,21 +134,19 @@ const AnalyticsPage = () => {
             toast.error("Нет авторизации");
             return;
         }
-        const res = await fetch(`${env.VITE_API_BASE_URL}/reports/tasks/overdue.csv`, {
-            headers: { Authorization: `Bearer ${bearer}` },
-        });
-        if (!res.ok) {
-            toast.error("Не удалось скачать отчёт");
-            return;
+        try {
+            const res = await axiosInstance.get("/reports/tasks/overdue.csv", { responseType: "blob" });
+            const blob = res.data as Blob;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "prosrochennye-zadachi.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success("Файл сохранён");
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
         }
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "prosrochennye-zadachi.csv";
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success("Файл сохранён");
     };
 
     const exportProjectTasks = async () => {
@@ -161,21 +159,21 @@ const AnalyticsPage = () => {
             toast.error("Нет авторизации");
             return;
         }
-        const res = await fetch(`${env.VITE_API_BASE_URL}/reports/projects/${projectIdForExport}/tasks.csv`, {
-            headers: { Authorization: `Bearer ${bearer}` },
-        });
-        if (!res.ok) {
-            toast.error("Не удалось скачать отчёт");
-            return;
+        try {
+            const res = await axiosInstance.get(`/reports/projects/${projectIdForExport}/tasks.csv`, {
+                responseType: "blob",
+            });
+            const blob = res.data as Blob;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `zadachi-proekta-${projectIdForExport}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success("CSV сохранён");
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
         }
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `zadachi-proekta-${projectIdForExport}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.success("CSV сохранён");
     };
 
     const hasStatusData = statusRows.some((r) => r.value > 0);

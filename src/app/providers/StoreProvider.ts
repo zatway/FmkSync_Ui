@@ -8,6 +8,7 @@ import "@/modules/search/api/searchApi";
 import "@/modules/analytics/api/analyticsApi";
 import "@/modules/organization/api/organizationApi";
 import "@/modules/admin/api/adminApi";
+import "@/shared/api/filesApi";
 import signalRReducer, { connectToSignalR } from "@/modules/signalr/signalRSlice";
 import notificationsReducer from "@/modules/notifications/notificationsSlice";
 

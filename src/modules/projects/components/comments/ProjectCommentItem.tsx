@@ -12,7 +12,9 @@ import { ProjectCommentForm } from "@/modules/projects";
 import { ProjectCommentDto } from "@/types/dto/projectComments/ProjectCommentDto";
 import { cn } from "@/shared/lib/ui_shadcn/utils";
 import { useDeleteProjectCommentMutation } from "@/modules/projects/api/projectsApi";
-import { getApiErrorMessage } from "@/shared/lib";
+import { authLocalService, getApiErrorMessage } from "@/shared/lib";
+import { parseAccessTokenClaims } from "@/shared/lib/auth/tokenClaims";
+import { UserRole } from "@/types/dto/enums/UserRole";
 import { CommentAttachmentLink } from "@/shared/ui/CommentAttachmentLink";
 
 interface Props {
@@ -22,6 +24,13 @@ interface Props {
 }
 
 export function ProjectCommentItem({ comment, projectId, level }: Props) {
+    const token = authLocalService.getToken();
+    const currentUserId = token ? parseAccessTokenClaims(token)?.userId ?? null : null;
+    const role = authLocalService.getUserRole();
+    const isMine = currentUserId === comment.author.id;
+    const canModerate = role === UserRole.Admin || role === UserRole.Manager;
+    const showDeleteAttachment = isMine || canModerate;
+
     const [isReplying, setIsReplying] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -71,7 +80,7 @@ export function ProjectCommentItem({ comment, projectId, level }: Props) {
                 {comment.attachments && comment.attachments.length > 0 && (
                     <div className="mt-3 flex flex-col gap-1">
                         {comment.attachments.map((a) => (
-                            <CommentAttachmentLink key={a.id} attachment={a} />
+                            <CommentAttachmentLink key={a.id} attachment={a} showDelete={showDeleteAttachment} />
                         ))}
                     </div>
                 )}
@@ -140,12 +149,7 @@ export function ProjectCommentItem({ comment, projectId, level }: Props) {
                 {comment.replies && comment.replies.length > 0 && (
                     <div className="mt-6 space-y-6">
                         {comment.replies.map((reply) => (
-                            <ProjectCommentItem
-                                key={reply.id}
-                                comment={reply}
-                                projectId={projectId}
-                                level={level + 1}
-                            />
+                            <ProjectCommentItem key={reply.id} comment={reply} projectId={projectId} level={level + 1} />
                         ))}
                     </div>
                 )}

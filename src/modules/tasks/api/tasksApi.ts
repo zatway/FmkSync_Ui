@@ -8,6 +8,7 @@ import { ChangeTaskStatusCommand } from "@/types/dto/tasks/ChangeTaskStatusComma
 import { AddTaskCommentRequest } from "@/types/dto/taskComments/AddTaskCommentRequest";
 import { UpdateTaskCommentRequest } from "@/types/dto/taskComments/UpdateTaskCommentRequest";
 import { DeleteTaskCommentRequest } from "@/types/dto/taskComments/DeleteTaskCommentRequest";
+import type { CommentAttachmentDto } from "@/types/dto/attachments/CommentAttachmentDto";
 
 const taskBase = env.API_TASK_PATH;
 const taskCommentsBase = env.API_TASK_COMMENTS_PATH;
@@ -170,6 +171,19 @@ export const tasksApi = api.injectEndpoints({
             }),
             invalidatesTags: ["Task"],
         }),
+
+        uploadTaskAttachments: builder.mutation<CommentAttachmentDto[], { taskId: string; files: File[] }>({
+            query: ({ taskId, files }) => {
+                const fd = new FormData();
+                files.forEach((f) => fd.append("files", f, f.name));
+                return {
+                    url: `${taskBase}/${taskId}/attachments`,
+                    method: "POST",
+                    data: fd,
+                };
+            },
+            invalidatesTags: (_, __, { taskId }) => [{ type: "Task", id: taskId }],
+        }),
     }),
 });
 
@@ -185,4 +199,5 @@ export const {
     useUploadTaskCommentAttachmentsMutation,
     useUpdateTaskCommentMutation,
     useDeleteTaskCommentMutation,
+    useUploadTaskAttachmentsMutation,
 } = tasksApi;

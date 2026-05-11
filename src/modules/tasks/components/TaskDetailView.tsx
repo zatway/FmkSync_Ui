@@ -4,6 +4,7 @@ import {
     useDeleteTaskMutation,
     useAddTaskCommentMutation,
     useUploadTaskCommentAttachmentsMutation,
+    useUploadTaskAttachmentsMutation,
     useUpdateTaskCommentMutation,
     useDeleteTaskCommentMutation,
     useChangeTaskStatusMutation,
@@ -18,6 +19,7 @@ import { ArrowLeft, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/shared/ui_shadcn/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui_shadcn/card";
 import { Textarea } from "@/shared/ui_shadcn/textarea";
+import { Label } from "@/shared/ui_shadcn/label";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -29,6 +31,7 @@ import { canMutateTask } from "@/modules/tasks/lib/taskAccess";
 import { FilePickerButton } from "@/shared/ui/FilePickerButton";
 import TaskHistory from "@/modules/tasks/components/TaskHistory";
 import { TaskCommentItem } from "@/modules/tasks/components/TaskCommentItem";
+import { CommentAttachmentLink } from "@/shared/ui/CommentAttachmentLink";
 import { UserAvatar } from "@/shared/ui/UserAvatar";
 import type { TaskStatusColumnDto } from "@/types/dto/tasks/TaskStatusColumnDto";
 import { resolveDoneColumnId } from "@/modules/tasks/lib/resolveDoneColumnId";
@@ -46,6 +49,7 @@ export function TaskDetailView() {
     const [changeStatus, { isLoading: closing }] = useChangeTaskStatusMutation();
     const [addComment, { isLoading: addingComment }] = useAddTaskCommentMutation();
     const [uploadAttachments, { isLoading: uploading }] = useUploadTaskCommentAttachmentsMutation();
+    const [uploadTaskFiles, { isLoading: uploadingTaskFiles }] = useUploadTaskAttachmentsMutation();
     const [updateComment, { isLoading: updatingComment }] = useUpdateTaskCommentMutation();
     const [deleteCommentMut, { isLoading: deletingComment }] = useDeleteTaskCommentMutation();
     const [commentText, setCommentText] = useState("");
@@ -53,6 +57,7 @@ export function TaskDetailView() {
     const [replyParentCommentId, setReplyParentCommentId] = useState<string | null>(null);
     const [mentionIds, setMentionIds] = useState<string[]>([]);
     const [files, setFiles] = useState<File[]>([]);
+    const [taskAttachFiles, setTaskAttachFiles] = useState<File[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState("");
     const [deleteTaskDialogOpen, setDeleteTaskDialogOpen] = useState(false);
@@ -71,6 +76,7 @@ export function TaskDetailView() {
         return canMutateTask(role, currentUserId, task);
     }, [role, currentUserId, task]);
     const canAddComments = role != null && role !== UserRole.ReadOnly;
+    const canModerateAttachments = role === UserRole.Admin || role === UserRole.Manager;
 
     const doneColumnId = useMemo(() => resolveDoneColumnId(statusColumns), [statusColumns]);
 
@@ -152,6 +158,17 @@ export function TaskDetailView() {
             await updateComment({ id: editingId, content: editContent.trim() }).unwrap();
             setEditingId(null);
             toast.success("Комментарий обновлён");
+        } catch (e) {
+            toast.error(getApiErrorMessage(e));
+        }
+    };
+
+    const handleUploadTaskAttachments = async () => {
+        if (!taskId || taskAttachFiles.length === 0) return;
+        try {
+            await uploadTaskFiles({ taskId, files: taskAttachFiles }).unwrap();
+            setTaskAttachFiles([]);
+            toast.success("Файлы прикреплены к задаче");
         } catch (e) {
             toast.error(getApiErrorMessage(e));
         }
@@ -267,6 +284,60 @@ export function TaskDetailView() {
                     )}
                 </CardContent>
             </Card>
+
+            {(task.fileAttachments?.length ?? 0) > 0 || canMutate ? (
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Вложения к задаче</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        {task.fileAttachments && task.fileAttachments.length > 0 ? (
+                            <div className="flex flex-col gap-1">
+                                {task.fileAttachments.map((a) => (
+                                    <CommentAttachmentLink
+                                        key={a.id}
+                                        attachment={{
+                                            id: a.id,
+                                            fileName: a.fileName,
+                                            contentType: a.contentType,
+                                            sizeBytes: a.sizeBytes,
+                                            createdAt: a.createdAt,
+                                        }}
+                                        showDelete={canMutate}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">Пока нет прикреплённых файлов.</p>
+                        )}
+                        {canMutate ? (
+                            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+                                <Label className="text-xs text-muted-foreground">Добавить файлы</Label>
+                                <FilePickerButton
+                                    multiple
+                                    disabled={uploadingTaskFiles}
+                                    label="Выбрать файлы"
+                                    onFiles={(picked) => setTaskAttachFiles((prev) => [...prev, ...picked])}
+                                />
+                                {taskAttachFiles.length > 0 ? (
+                                    <p className="text-xs text-muted-foreground break-all">
+                                        К загрузке: {taskAttachFiles.map((f) => f.name).join(", ")}
+                                    </p>
+                                ) : null}
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    disabled={uploadingTaskFiles || taskAttachFiles.length === 0}
+                                    onClick={() => void handleUploadTaskAttachments()}
+                                >
+                                    {uploadingTaskFiles ? "Загрузка…" : "Загрузить вложения"}
+                                </Button>
+                            </div>
+                        ) : null}
+                    </CardContent>
+                </Card>
+            ) : null}
 
             <Card>
                 <CardHeader className="pb-3">
@@ -429,6 +500,7 @@ export function TaskDetailView() {
                                         key={c.id}
                                         comment={c}
                                         level={0}
+                                        canModerateAttachments={canModerateAttachments}
                                         readOnly={!canAddComments}
                                         currentUserId={currentUserId}
                                         editingId={editingId}

@@ -13,6 +13,8 @@ import type { TaskCommentDto } from "@/types/dto/taskComments/TaskCommentDto";
 type Props = {
     comment: TaskCommentDto;
     level: number;
+    /** Автор комментария или админ/менеджер могут удалять вложения к комментарию. */
+    canModerateAttachments: boolean;
     /** Режим только просмотра: скрыть ответ, правку и удаление. */
     readOnly?: boolean;
     currentUserId: string | null;
@@ -30,6 +32,7 @@ type Props = {
 export function TaskCommentItem({
     comment,
     level,
+    canModerateAttachments,
     readOnly = false,
     currentUserId,
     editingId,
@@ -43,6 +46,7 @@ export function TaskCommentItem({
     onRemove,
 }: Props) {
     const isMine = currentUserId === comment.userId;
+    const showDeleteAttachment = canModerateAttachments || isMine;
 
     return (
         <div className={cn("flex gap-4", level > 0 && "ml-10 border-l-2 border-muted pl-6")}>
@@ -70,7 +74,7 @@ export function TaskCommentItem({
                 {comment.attachments?.length ? (
                     <div className="mt-3 flex flex-col gap-1">
                         {comment.attachments.map((a) => (
-                            <CommentAttachmentLink key={a.id} attachment={a} />
+                            <CommentAttachmentLink key={a.id} attachment={a} showDelete={showDeleteAttachment} />
                         ))}
                     </div>
                 ) : null}
@@ -128,6 +132,7 @@ export function TaskCommentItem({
                                 key={reply.id}
                                 comment={reply}
                                 level={level + 1}
+                                canModerateAttachments={canModerateAttachments}
                                 readOnly={readOnly}
                                 currentUserId={currentUserId}
                                 editingId={editingId}

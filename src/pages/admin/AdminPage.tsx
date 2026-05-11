@@ -116,6 +116,7 @@ const AdminPage = () => {
     const [editPassword, setEditPassword] = useState("");
     const [editDepartmentId, setEditDepartmentId] = useState("");
     const [editPositionId, setEditPositionId] = useState("");
+    const [editRole, setEditRole] = useState<UserRole>(UserRole.Employee);
 
     const positionsForEdit = useGetPositionsQuery(editDepartmentId || undefined, {
         skip: !editDepartmentId || !editOpen,
@@ -129,6 +130,7 @@ const AdminPage = () => {
         setEditPassword("");
         setEditDepartmentId(editUser.departmentId);
         setEditPositionId(editUser.positionId);
+        setEditRole(editUser.role);
     }, [editOpen, editUser]);
 
     useEffect(() => {
@@ -164,6 +166,7 @@ const AdminPage = () => {
                     email: editEmail.trim(),
                     departmentId: editDepartmentId,
                     positionId: editPositionId,
+                    role: editRole,
                     newPassword: editPassword.trim() || undefined,
                 },
             }).unwrap();
@@ -810,6 +813,20 @@ const AdminPage = () => {
                                 value={editEmail}
                                 onChange={(e) => setEditEmail(e.target.value)}
                             />
+                        </div>
+                        <div className="space-y-1">
+                            <Label>Роль</Label>
+                            <Select value={editRole} onValueChange={(v) => setEditRole(v as UserRole)}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={UserRole.ReadOnly}>Только просмотр</SelectItem>
+                                    <SelectItem value={UserRole.Employee}>Сотрудник</SelectItem>
+                                    <SelectItem value={UserRole.Manager}>Руководитель</SelectItem>
+                                    <SelectItem value={UserRole.Admin}>Администратор</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                         <div className="space-y-1">
                             <Label>Новый пароль (оставьте пустым, чтобы не менять)</Label>
